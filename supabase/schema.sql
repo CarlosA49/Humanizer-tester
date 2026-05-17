@@ -16,6 +16,8 @@ create table if not exists public.private_config (
   value text not null
 );
 revoke all on public.private_config from anon, authenticated;
+-- Deny-all RLS (no policies). SECURITY DEFINER functions still read it.
+alter table public.private_config enable row level security;
 
 -- IMPORTANT: this MUST equal COUPON_SECRET in docs/config.js
 insert into public.private_config (key, value)
@@ -39,6 +41,12 @@ alter table public.profiles enable row level security;
 drop policy if exists "read own profile" on public.profiles;
 create policy "read own profile" on public.profiles
   for select using (auth.uid() = id);
+
+-- Explicit grants so the Data API works whether or not "Automatically
+-- expose new tables" is enabled. RLS still limits reads to the own row;
+-- all writes go only through the SECURITY DEFINER functions below.
+grant usage on schema public to anon, authenticated;
+grant select on public.profiles to authenticated;
 
 -- Auto-create the profile row on signup.
 create or replace function public.handle_new_user()
