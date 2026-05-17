@@ -1,5 +1,11 @@
 # Humanizer-tester
 
+[![Try it live](https://img.shields.io/badge/Try%20it%20live-Humanizer%20web%20app-3b82f6?style=for-the-badge)](https://carlosa49.github.io/Humanizer-tester/)
+[![Tests](https://img.shields.io/badge/tests-41%20passing-22c55e?style=flat-square)](tests/)
+[![Runs in browser](https://img.shields.io/badge/runtime-Pyodide%20(no%20server)-9aa7b4?style=flat-square)](docs/)
+
+> **▶ Live app: https://carlosa49.github.io/Humanizer-tester/**
+
 An **AI Humanizer**: it rewrites machine-sounding text into a chosen human
 **tone** while measuring and improving the three signals AI-text detectors
 care about most — **perplexity**, **burstiness**, and **lexical diversity**.
