@@ -68,6 +68,9 @@ class Context:
     citation_mode: str = "off"  # off | placeholder | author-year | numbered
     sources: List[str] = field(default_factory=list)
     references: List[str] = field(default_factory=list)
+    academic_style: bool = False  # technical-paper transforms (always on for academic tone)
+    acronyms: Dict[str, str] = field(default_factory=dict)  # extra first-use glosses
+    _acro_seen: set = field(default_factory=set)
 
     def chance(self, base: float) -> bool:
         return self.rng.random() < min(1.0, base * (0.4 + 1.2 * self.strength))
@@ -151,43 +154,135 @@ def strip_ai_tells(sentences: List[str], ctx: Context) -> List[str]:
     return [s for s in out if s]
 
 
+# Connectives / auxiliaries / pronouns academic prose keeps verbatim -- the
+# human edits never thesaurus-swap these, and doing so reads badly.
+_FUNCTION_WORDS = frozenset("""
+a an the and or but nor so yet for of to in on at by with from into onto over
+under as is are was were be been being am do does did has have had can could
+will would shall should may might must this that these those it its they them
+their we us our you your he she his her him not no than then thus hence also
+because however therefore additionally furthermore moreover while since
+although though if when which who whom whose what where whether both either
+neither each every any some such only very more most less least about
+""".split())
+
+_PROTECT_RE = re.compile(r"\[[^\]]*\]|\([^)]*\)")
+
+
+def _protected_spans(text: str):
+    return [(m.start(), m.end()) for m in _PROTECT_RE.finditer(text)]
+
+
+def _in_spans(a: int, b: int, spans) -> bool:
+    return any(a < e and b > s for s, e in spans)
+
+
+def _is_proper_or_acronym(tok: str, first_alpha: bool) -> bool:
+    """Heuristic: protect names / acronyms / model identifiers.
+
+    Skips ALL-CAPS tokens (UWB), tokens with an internal capital or digit
+    (YOLOv8, ArUco, Hailo-8L), and mid-sentence Capitalized words (author
+    names like Wang/Zhao/Xu).  A sentence-initial capitalized common word is
+    still eligible.
+    """
+    if any(ch.isdigit() for ch in tok):
+        return True
+    if len(tok) > 1 and tok.isupper():
+        return True
+    if any(c.isupper() for c in tok[1:]):
+        return True
+    if tok[:1].isupper() and not first_alpha:
+        return True
+    return False
+
+
+_LEAD_WORD_RE = re.compile(r"[A-Za-z][\w'’.-]*")
+
+
+def _lower_body(s: str) -> str:
+    """Lower the first letter for ``Connector, <body>`` joins, but keep a
+    leading proper noun / acronym / author name capitalised."""
+    st = s.lstrip()
+    toks = _LEAD_WORD_RE.findall(st[:64])
+    if not toks:
+        return s
+    w0 = toks[0]
+    if _is_proper_or_acronym(w0, True):
+        return s
+    if w0[:1].isupper():
+        nxt = toks[1] if len(toks) > 1 else ""
+        after = st[len(w0):].lstrip()[:1]
+        if nxt[:1].isupper() or nxt.lower() in ("et", "al") or after == "[":
+            return s
+    return st[:1].lower() + st[1:]
+
+
 def lexical_substitution(sentences: List[str], ctx: Context) -> List[str]:
     used: Dict[str, set] = {}
     syn = ctx.tone.synonyms
-    # Every multi-word key in the tone dictionary, longest first so e.g.
-    # "due to the fact that" wins over "the fact that".
+    academic = getattr(ctx, "academic_style", False) or ctx.tone.name == "academic"
+    # Academic edits keep most words and stay in a common register; the
+    # thesaurus pressure is dialled back and rare-word bias is dropped.
+    phrase_chance = 0.20 if academic else 0.62
+    word_chance = 0.18 if academic else 0.68
+
+    def _pick(pool):
+        if academic:
+            return ctx.rng.choice(pool)
+        return _surprisal_weighted_choice(ctx.rng, pool)
+
     phrase_keys = sorted(
         (k for k in syn if " " in k), key=len, reverse=True
     )
     out = []
     for sent in sentences:
         text = sent
-        # Multi-word phrase pass first.
         for key in phrase_keys:
             pat = re.compile(r"\b" + re.escape(key) + r"\b", re.IGNORECASE)
 
             def _sub(m, key=key):
-                if not ctx.chance(0.62):
+                if _in_spans(m.start(), m.end(), _protected_spans(m.string)):
+                    return m.group(0)
+                if not ctx.chance(phrase_chance):
                     return m.group(0)
                 pool = [w for w in syn[key] if w not in used.get(key, set())] or syn[key]
-                choice = _surprisal_weighted_choice(ctx.rng, pool)
+                choice = _pick(pool)
                 used.setdefault(key, set()).add(choice)
                 ctx.log(f"lexical: {m.group(0)!r} -> {choice!r}")
                 return _match_case(m.group(0), choice)
 
             text = pat.sub(_sub, text)
 
-        # Single-word pass.
-        tokens = _TOKEN_RE.findall(text)
-        for i, tok in enumerate(tokens):
+        # Single-word pass (span-aware so names / acronyms / citations and
+        # parenthetical glosses are never thesaurus-swapped).
+        spans = _protected_spans(text)
+        pieces: List[str] = []
+        seen_alpha = False
+        last = 0
+        for m in _TOKEN_RE.finditer(text):
+            tok = m.group(0)
+            pieces.append(tok)
+            idx = len(pieces) - 1
+            is_word = bool(tok) and tok[0].isalpha()
+            first_alpha = is_word and not seen_alpha
+            if is_word:
+                seen_alpha = True
             low = tok.lower()
-            if low in syn and ctx.chance(0.68):
+            if (
+                is_word
+                and low in syn
+                and not _in_spans(m.start(), m.end(), spans)
+                and not (academic and _is_proper_or_acronym(tok, first_alpha))
+                and not (academic and low in _FUNCTION_WORDS)
+                and ctx.chance(word_chance)
+            ):
                 pool = [w for w in syn[low] if w not in used.get(low, set())] or syn[low]
-                choice = _surprisal_weighted_choice(ctx.rng, pool)
+                choice = _pick(pool)
                 used.setdefault(low, set()).add(choice)
-                tokens[i] = _match_case(tok, choice)
+                pieces[idx] = _match_case(tok, choice)
                 ctx.log(f"lexical: {tok!r} -> {choice!r}")
-        out.append("".join(tokens))
+            last = m.end()
+        out.append("".join(pieces) + text[last:])
     return out
 
 
@@ -251,6 +346,13 @@ def _split_once(sent: str, ctx: Context, lo_frac: float = 3.0):
 
 
 def vary_sentence_length(sentences: List[str], ctx: Context) -> List[str]:
+    # Academic prose is measured: a higher split gate and no punchy fragments,
+    # so citation-bearing clause lists are not shattered.
+    academic = getattr(ctx, "academic_style", False) or ctx.tone.name == "academic"
+    # In academic style, principled clause splitting is handled by
+    # academic_connectors (", but " -> ". However,"); disable the heuristic
+    # run-on splitter so it never breaks an "X, and showed Y" clause.
+    split_gate = 10_000 if academic else 19
     out: List[str] = []
     i = 0
     while i < len(sentences):
@@ -261,7 +363,7 @@ def vary_sentence_length(sentences: List[str], ctx: Context) -> List[str]:
         # repeated passes carve sharp long/short contrasts while keeping the
         # maximum length bounded, so the spread lands near the human target
         # instead of blowing past it.
-        if len(words) >= 19:
+        if len(words) >= split_gate:
             split = _split_once(sent, ctx)
             if split and ctx.chance(0.88):
                 first, rest = split
@@ -300,8 +402,9 @@ def vary_sentence_length(sentences: List[str], ctx: Context) -> List[str]:
 
         # Drop a punchy stand-alone fragment after a longer sentence.  Kept
         # moderate so short lines contrast with long ones without flooding the
-        # text and pushing the length CV past the human target.
-        if len(words) >= 14 and ctx.chance(0.45):
+        # text and pushing the length CV past the human target.  Suppressed in
+        # academic style (technical prose does not use punchy fragments).
+        if not academic and len(words) >= 14 and ctx.chance(0.45):
             frag = ctx.rng.choice(ctx.tone.fragments)
             ctx.log("burstiness: added a short fragment")
             out.append(frag)
@@ -311,17 +414,29 @@ def vary_sentence_length(sentences: List[str], ctx: Context) -> List[str]:
 
 def inject_discourse_markers(sentences: List[str], ctx: Context) -> List[str]:
     out = []
-    budget = max(1, int(len(sentences) * (0.35 + 0.5 * ctx.strength)))
+    academic = getattr(ctx, "academic_style", False) or ctx.tone.name == "academic"
+    # Academic prose already gets one leading connector per sentence from
+    # academic_connectors; keep this pass sparse and never wedge mid-sentence
+    # asides into technical text.
+    if academic:
+        budget = int(len(sentences) * 0.12)
+    else:
+        budget = max(1, int(len(sentences) * (0.35 + 0.5 * ctx.strength)))
     for idx, sent in enumerate(sentences):
         new = sent
         already = any(new.startswith(s) for s in ctx.tone.starters)
         if budget > 0 and idx != 0 and not already and ctx.chance(0.5):
             starter = ctx.rng.choice(ctx.tone.starters)
-            body = new[0].lower() + new[1:] if new[:1].isupper() else new
+            body = _lower_body(new)
             new = f"{starter} {body}"
             ctx.log(f"voice: opened a sentence with {starter!r}")
             budget -= 1
-        elif budget > 0 and ", " in new and ctx.chance(0.25):
+        elif (
+            not academic
+            and budget > 0
+            and ", " in new
+            and ctx.chance(0.25)
+        ):
             inter = ctx.rng.choice(ctx.tone.interjections)
             head, _, tail = new.partition(", ")
             new = f"{head}, {inter}, {tail}"
@@ -344,45 +459,60 @@ RULES: Dict[str, Callable[[List[str], Context], List[str]]] = {
 from .extra_rules import EXTRA_RULES  # noqa: E402
 from .paraphrase import restructure_sentences  # noqa: E402
 from .citations import add_citations  # noqa: E402
+from .academic_style import RULES as _ACADEMIC_RULES  # noqa: E402
 
 RULES.update(EXTRA_RULES)
 RULES["restructure_sentences"] = restructure_sentences
 RULES["add_citations"] = add_citations
+RULES.update(_ACADEMIC_RULES)
 
+# Academic-style rules self-gate (no-op unless academic_style / academic
+# tone), so they can sit in every pipeline.  Cleanup transforms run early;
+# citation normalization runs dead last so tokens always finish at the
+# sentence end.
 DEFAULT_PIPELINE = [
     "strip_ai_tells",
     "prune_redundancy",
+    "decompound_terms",
+    "deflate_modifiers",
+    "expand_acronyms",
     "lexical_substitution",
     "adjust_contractions",
     "reorder_clauses",
     "restructure_sentences",
+    "academic_connectors",
     "soften_passive",
     "vary_sentence_length",
     "inject_hedges_intensifiers",
     "vary_openers",
     "inject_discourse_markers",
     "add_citations",
+    "normalize_citations",
 ]
 
 # Tones can override the rule order / subset.  Anything not listed here falls
 # back to DEFAULT_PIPELINE.
 TONE_PIPELINES: Dict[str, List[str]] = {
     "academic": [
-        "strip_ai_tells", "prune_redundancy", "lexical_substitution",
+        "strip_ai_tells", "prune_redundancy", "decompound_terms",
+        "deflate_modifiers", "expand_acronyms", "lexical_substitution",
         "adjust_contractions", "reorder_clauses", "restructure_sentences",
-        "inject_hedges_intensifiers", "vary_sentence_length", "vary_openers",
-        "inject_discourse_markers", "add_citations",
+        "academic_connectors", "inject_hedges_intensifiers",
+        "vary_sentence_length", "vary_openers", "inject_discourse_markers",
+        "add_citations", "normalize_citations",
     ],
     "confident": [
         "strip_ai_tells", "prune_redundancy", "soften_passive",
         "lexical_substitution", "adjust_contractions", "restructure_sentences",
         "inject_hedges_intensifiers", "vary_sentence_length",
         "vary_openers", "inject_discourse_markers", "add_citations",
+        "normalize_citations",
     ],
     "storytelling": [
         "strip_ai_tells", "lexical_substitution", "adjust_contractions",
         "reorder_clauses", "restructure_sentences", "vary_sentence_length",
         "vary_openers", "inject_discourse_markers", "add_citations",
+        "normalize_citations",
     ],
 }
 

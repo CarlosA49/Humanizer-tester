@@ -139,6 +139,8 @@ class Humanizer:
         restructure: bool = True,
         citations: str = "off",
         sources: Optional[List[str]] = None,
+        academic_style: bool = False,
+        acronyms: Optional[dict] = None,
     ) -> None:
         self.tone: Tone = get_tone(tone)
         self.strength = max(0.0, min(1.0, float(strength)))
@@ -149,6 +151,8 @@ class Humanizer:
             "off", "placeholder", "author-year", "numbered"
         ) else "off"
         self.sources = list(sources or [])
+        self.academic_style = bool(academic_style)
+        self.acronyms = dict(acronyms or {})
 
     def humanize(self, text: str) -> HumanizeResult:
         original = text or ""
@@ -161,6 +165,8 @@ class Humanizer:
             restructure=self.restructure,
             citation_mode=self.citations,
             sources=list(self.sources),
+            academic_style=self.academic_style,
+            acronyms=dict(self.acronyms),
         )
 
         # Preserve paragraph structure: rewrite each paragraph independently,

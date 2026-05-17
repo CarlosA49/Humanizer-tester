@@ -50,6 +50,17 @@
           <option value="numbered">Numbered [1] + sources</option>
         </select>
       </label>
+      <label for="academic" title="Acronym gloss, modifier deflation, compound un-stacking, citation normalization. Always on for the academic tone.">Academic style <span class="hint">(technical-paper edits)</span>
+        <select id="academic">
+          <option value="off" selected>Off</option>
+          <option value="on">On</option>
+        </select>
+      </label>
+    </div>
+    <div class="row" id="acronymRow" hidden>
+      <label for="acronyms" style="flex:1">Acronym glosses <span class="hint">(one per line: <code>UWB = ultra-wideband (UWB)</code>)</span>
+        <textarea id="acronyms" rows="2" placeholder="UWB = ultra-wideband (UWB)&#10;YOLO = YOLO (You Only Look Once)"></textarea>
+      </label>
     </div>
     <div class="row" id="sourcesRow" hidden>
       <label for="sources" style="flex:1">Reference list <span class="hint">(one per line; fills numbered [n] markers)</span>

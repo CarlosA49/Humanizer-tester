@@ -237,6 +237,21 @@ def restructure_sentences(sentences: List[str], ctx: Context) -> List[str]:
     if not getattr(ctx, "restructure", True):
         return sentences
 
+    academic = (
+        getattr(ctx, "academic_style", False) or ctx.tone.name == "academic"
+    )
+    # The slot-fill reframes are conversational; in academic style only the
+    # register-neutral concision transforms run, and at most one per sentence.
+    skip = {
+        "t_importance_reframe",
+        "t_cause_reframe",
+        "t_recommendation_reframe",
+        # "A and B and C" reflow would rewrite author lists ("Wang and Zhao
+        # and ...") and clause-coordination in citations; unsafe here.
+        "t_list_reflow",
+    }
+    max_apply = 1 if academic else 2
+
     out: List[str] = []
     for sent in sentences:
         if not sent.strip():
@@ -245,8 +260,10 @@ def restructure_sentences(sentences: List[str], ctx: Context) -> List[str]:
         new = sent
         applied = 0
         for fn in TRANSFORMS:
-            if applied >= 2:
+            if applied >= max_apply:
                 break
+            if academic and fn.__name__ in skip:
+                continue
             base = _BASE_CHANCE.get(fn.__name__, 0.5)
             if not ctx.chance(base):
                 continue

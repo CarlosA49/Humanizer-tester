@@ -45,14 +45,23 @@ if "/pkg" not in sys.path:
     sys.path.insert(0, "/pkg")
 from humanizer import Humanizer, list_tones, suggest_synonyms
 
-def _run(text, tone, strength, seed, restructure, citations, sources):
+def _run(text, tone, strength, seed, restructure, citations, sources,
+         academic, acronyms):
     s = None if seed in (None, "", "None") else int(seed)
     src = [ln.strip() for ln in (sources or "").splitlines() if ln.strip()]
+    acro = {}
+    for ln in (acronyms or "").splitlines():
+        if "=" in ln:
+            k, _, v = ln.partition("=")
+            if k.strip() and v.strip():
+                acro[k.strip()] = v.strip()
     r = Humanizer(
         tone=tone, strength=float(strength), seed=s,
         restructure=(str(restructure) != "off"),
         citations=citations or "off",
         sources=src,
+        academic_style=(str(academic) == "on"),
+        acronyms=acro,
     ).humanize(text)
     return json.dumps({
         "text": r.text,
@@ -241,6 +250,10 @@ function wireUI() {
   citSel.addEventListener("change", () => {
     $("sourcesRow").hidden = citSel.value !== "numbered";
   });
+  const acaSel = $("academic");
+  acaSel.addEventListener("change", () => {
+    $("acronymRow").hidden = acaSel.value !== "on";
+  });
 
   $("sampleBtn").addEventListener("click", () => {
     input.value = SAMPLE; updCount(); input.focus();
@@ -270,7 +283,9 @@ function wireUI() {
           seed,
           $("restructure").value,
           $("citations").value,
-          $("sources").value
+          $("sources").value,
+          $("academic").value,
+          $("acronyms").value
         );
         render(JSON.parse(json));
         if (T) T.consume(words);

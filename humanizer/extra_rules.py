@@ -174,6 +174,10 @@ def vary_openers(sentences: List[str], ctx: Context) -> List[str]:
 def inject_hedges_intensifiers(sentences: List[str], ctx: Context) -> List[str]:
     """Slip a tone-appropriate hedge or intensifier near a clause start."""
     tone = ctx.tone.name
+    # Academic style avoids vague wedged hedges ("arguably,", "to some
+    # extent,"); they read as AI tells in technical prose.
+    if getattr(ctx, "academic_style", False) or tone == "academic":
+        return sentences
     if tone in _HEDGING_TONES:
         pool, kind = _HEDGES, "hedge"
     elif tone in _ASSERTIVE_TONES:

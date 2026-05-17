@@ -28,12 +28,29 @@ def tokenize_words(text: str) -> List[str]:
     return [w.lower() for w in _WORD_RE.findall(text)]
 
 
+_ABBREV = (
+    "al.", "et al.", "e.g.", "i.e.", "etc.", "vs.", "cf.", "fig.", "eq.",
+    "no.", "ref.", "dr.", "mr.", "mrs.", "ms.", "prof.", "sr.", "jr.",
+    "approx.", "dept.", "ed.", "eds.", "vol.", "pp.", "p.",
+)
+
+
 def split_sentences(text: str) -> List[str]:
     text = text.strip()
     if not text:
         return []
     parts = _SENT_SPLIT_RE.split(text)
-    return [p.strip() for p in parts if p.strip()]
+    # Re-join where the split fell after a known abbreviation ("et al.",
+    # "e.g.") rather than a real sentence boundary.
+    merged: List[str] = []
+    for part in parts:
+        if merged:
+            tail = merged[-1].rstrip().lower()
+            if any(tail.endswith(a) for a in _ABBREV):
+                merged[-1] = merged[-1].rstrip() + " " + part.lstrip()
+                continue
+        merged.append(part)
+    return [p.strip() for p in merged if p.strip()]
 
 
 @dataclass

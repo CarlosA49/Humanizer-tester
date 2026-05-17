@@ -56,6 +56,16 @@ def build_parser() -> argparse.ArgumentParser:
         "--sources",
         help="File with one reference per line; fills numbered [n] markers.",
     )
+    p.add_argument(
+        "--academic-style", dest="academic_style", action="store_true",
+        help="Apply technical-paper transforms (acronym gloss, modifier "
+        "deflation, compound un-stacking, citation normalization). "
+        "Always on for the 'academic' tone.",
+    )
+    p.add_argument(
+        "--acronyms",
+        help="File of 'ACRO = expansion (ACRO)' lines for first-use glosses.",
+    )
     p.add_argument("-f", "--file", help="Read input text from a file.")
     p.add_argument("--metrics", action="store_true", help="Print before/after metrics.")
     p.add_argument(
@@ -87,6 +97,15 @@ def main(argv: Optional[List[str]] = None) -> int:
         with open(args.sources, "r", encoding="utf-8") as fh:
             sources = [ln.strip() for ln in fh if ln.strip()]
 
+    acronyms = {}
+    if args.acronyms:
+        with open(args.acronyms, "r", encoding="utf-8") as fh:
+            for ln in fh:
+                if "=" in ln:
+                    k, _, v = ln.partition("=")
+                    if k.strip() and v.strip():
+                        acronyms[k.strip()] = v.strip()
+
     try:
         h = Humanizer(
             tone=args.tone,
@@ -95,6 +114,8 @@ def main(argv: Optional[List[str]] = None) -> int:
             restructure=args.restructure,
             citations=args.citations,
             sources=sources,
+            academic_style=args.academic_style,
+            acronyms=acronyms,
         )
     except KeyError as exc:
         print(str(exc), file=sys.stderr)

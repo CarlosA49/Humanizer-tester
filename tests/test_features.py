@@ -132,6 +132,80 @@ class RestructureTests(unittest.TestCase):
                 self.assertTrue(r.text.strip())
 
 
+ACA = (
+    "Recent studies show that camera-based systems can support object "
+    "monitoring [2]. Wang and Zhao [3] used an improved YOLOv8 model and "
+    "showed that occlusion can still affect detection performance. To address "
+    "this limitation, Xu et al. [5] proposed UWB-based tracking, but it "
+    "remains limited in non-line-of-sight conditions in many different cases."
+)
+
+
+class AcademicStyleTests(unittest.TestCase):
+    def _run(self, **kw):
+        return Humanizer(
+            tone="academic", strength=0.4, seed=7, **kw
+        ).humanize(ACA)
+
+    def test_no_citation_numbers_are_invented_or_lost(self):
+        r = self._run()
+        self.assertEqual(
+            sorted(__import__("re").findall(r"\d+", r.text)),
+            sorted(["2", "3", "5", "8"]),  # 8 from "YOLOv8"
+        )
+        for n in ("[2]", "[3]", "[5]"):
+            self.assertIn(n, r.text)
+
+    def test_citations_moved_to_sentence_end(self):
+        r = self._run()
+        # No citation token immediately followed by a lowercase word.
+        self.assertIsNone(
+            __import__("re").search(r"\[\d+\]\s+[a-z]", r.text)
+        )
+
+    def test_acronym_expanded_once_and_not_decapitalized(self):
+        r = self._run()
+        self.assertIn("ultra-wideband (UWB)", r.text)
+        self.assertNotIn("yOLO", r.text)
+        self.assertNotIn("uWB", r.text)
+
+    def test_compound_unstacked(self):
+        r = self._run()
+        self.assertNotIn("camera-based systems", r.text)
+
+    def test_inflated_modifier_deflated(self):
+        r = Humanizer(tone="academic", strength=0.3, seed=2).humanize(
+            "This is increasingly important for large-scale data collection."
+        )
+        self.assertNotIn("increasingly important", r.text)
+        self.assertNotIn("large-scale", r.text)
+
+    def test_et_al_not_split_into_a_new_sentence(self):
+        r = self._run()
+        self.assertNotIn(". Proposed", r.text)
+
+    def test_function_words_and_names_preserved(self):
+        r = self._run()
+        self.assertIn("Wang and Zhao", r.text)
+        self.assertIn("Xu et al.", r.text)
+
+    def test_deterministic_and_runs_for_all_tones_with_flag(self):
+        a = Humanizer(tone="professional", seed=3, academic_style=True).humanize(ACA)
+        b = Humanizer(tone="professional", seed=3, academic_style=True).humanize(ACA)
+        self.assertEqual(a.text, b.text)
+        for t in list_tones():
+            with self.subTest(tone=t):
+                r = Humanizer(tone=t, seed=1, academic_style=True).humanize(ACA)
+                self.assertTrue(r.text.strip())
+
+    def test_custom_acronyms_are_used(self):
+        r = Humanizer(
+            tone="academic", strength=0.2, seed=1,
+            acronyms={"NLOS": "non-line-of-sight (NLOS)"},
+        ).humanize("NLOS conditions degrade NLOS tracking accuracy here.")
+        self.assertIn("non-line-of-sight (NLOS)", r.text)
+
+
 class PatternInventoryTests(unittest.TestCase):
     def test_inventory_shape_and_positivity(self):
         for t in list_tones():
