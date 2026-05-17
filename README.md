@@ -21,9 +21,24 @@ via Pyodide/WASM) — no server, nothing uploaded. First visit downloads a
 ~6 MB runtime, then it's instant. Source for the app lives in [`docs/`](docs/)
 and is deployed by [`.github/workflows/pages.yml`](.github/workflows/pages.yml).
 
-> One-time repo setting to publish it: **Settings → Pages → Build and
-> deployment → Source = "GitHub Actions"**. The workflow then deploys on
-> every push and prints the live URL in its run summary.
+> One-time repo setting to publish it: the repo must be **public** (free
+> plan) and **Settings → Pages → Source = "GitHub Actions"**.
+
+### Install it as an app (iPhone / Android / desktop)
+
+The web app is a **PWA** — install it to your home screen, no app store:
+
+- **iPhone (Safari):** open the link → tap **Share** → **Add to Home
+  Screen**. An app icon appears; it launches full‑screen and works
+  **offline** after the first load. Delete it like any app; re‑add anytime
+  from the link.
+- **Android (Chrome):** open the link → menu **⋮** → **Install app** /
+  **Add to Home screen**.
+- **Desktop (Chrome/Edge):** an **Install** icon appears in the address bar.
+
+A native **App Store** wrapper (for a real store listing) is scaffolded in
+[`ios/`](ios/) with full build/submit instructions — that path needs a Mac,
+Xcode, and an Apple Developer account.
 
 ## What it does
 
@@ -140,9 +155,11 @@ humanizer/
   cli.py              command-line interface
 tests/                unittest suites (test_humanizer, test_extended)
 examples/             per-tone sample inputs
-docs/                 in-browser web app (Pyodide): index.html, app.js, styles.css
+docs/                 installable web app (PWA): index.html, app.js, styles.css,
+                      manifest.webmanifest, sw.js (offline), icons/
 web/build_site.py     bundles docs/ + live humanizer/ into _site for Pages
 .github/workflows/    CI: runs tests, builds & deploys the web app to Pages
+ios/                  App Store wrapper scaffold (SwiftUI WKWebView) + plan
 ```
 
 > Note: this nudges text toward human-typical statistics; it is a writing
