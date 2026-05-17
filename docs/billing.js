@@ -637,6 +637,18 @@
     devHash();
     window.addEventListener("hashchange", devHash);
     window.__dev = tryDevUnlock;
+    // iOS-friendly hidden trigger: tap the "AI Humanizer" title 7 times
+    // within ~1.2s between taps (no console / URL typing needed).
+    var tapEl = document.querySelector("header h1");
+    if (tapEl) {
+      var taps = 0, last = 0;
+      tapEl.addEventListener("click", function () {
+        var now = Date.now();
+        taps = now - last < 1200 ? taps + 1 : 1;
+        last = now;
+        if (taps >= 7) { taps = 0; tryDevUnlock(); }
+      });
+    }
   }
   if (document.readyState === "loading")
     document.addEventListener("DOMContentLoaded", init);
