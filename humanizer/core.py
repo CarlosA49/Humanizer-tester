@@ -18,10 +18,31 @@ __all__ = ["Humanizer", "HumanizeResult", "list_tones"]
 _AN_EXCEPTIONS = ("hour", "honest", "honour", "honor", "heir")
 _A_EXCEPTIONS = ("uni", "use", "user", "one", "once", "euro", "ufo")
 _ARTICLE_RE = re.compile(r"\b([Aa])(n?)\s+([A-Za-z]+)")
+# A run of two or more articles (e.g. "the the", "the a") collapses to the
+# last one — the article the substituted phrase brought with it.
+_DUP_ARTICLE_RE = re.compile(
+    r"\b((?:an?|the)\s+){2,}(?=[A-Za-z])", re.IGNORECASE
+)
 
 
 def _fix_articles(text: str) -> str:
-    """Repair a/an after lexical substitution changes the following word."""
+    """Repair article glitches introduced by lexical substitution.
+
+    Lexical replacements can be article-led phrases (e.g. ``plan`` ->
+    ``"the strategy"``). When the original word already had an article this
+    yields a doubled article (``the the strategy``); collapse those, keeping
+    the last article and its capitalization, then fix ``a``/``an`` agreement.
+    """
+
+    def _collapse(m: re.Match) -> str:
+        run = m.group(0)
+        last = m.group(1)
+        # Preserve a leading capital (e.g. sentence start "The the ...").
+        if run[:1].isupper():
+            last = last[:1].upper() + last[1:]
+        return last
+
+    text = _DUP_ARTICLE_RE.sub(_collapse, text)
 
     def repl(m: re.Match) -> str:
         art, n, word = m.group(1), m.group(2), m.group(3)
