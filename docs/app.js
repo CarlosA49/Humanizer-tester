@@ -131,6 +131,9 @@ function wireUI() {
   runBtn.addEventListener("click", () => {
     const text = input.value.trim();
     if (!text) { input.focus(); return; }
+    const T = window.Trial;
+    const words = T ? T.wordCount(text) : 0;
+    if (T && !T.allow()) { T.showPaywall(); return; }
     runBtn.disabled = true;
     runBtn.textContent = "Humanizing…";
     setTimeout(() => {
@@ -138,6 +141,7 @@ function wireUI() {
         const seed = $("seed").value;
         const json = run(text, $("tone").value, $("strength").value, seed);
         render(JSON.parse(json));
+        if (T) T.consume(words);
       } catch (err) {
         $("output").innerHTML = '<span class="err">Error: ' +
           String(err).replace(/</g, "&lt;") + "</span>";

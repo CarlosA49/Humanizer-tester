@@ -28,6 +28,30 @@ care about most — **perplexity**, **burstiness**, and **lexical diversity**.
 
 Pure Python, **standard library only** (no models, no network, no installs).
 
+## Plans, trial, coupons & feedback (MVP)
+
+A no‑backend launch MVP is built in: a **500‑word free trial**, an
+introductory‑priced plans page (Starter ₱499 / Pro ₱799 / Unlimited ₱1,499
+monthly · Pro Annual ₱7,990 · Lifetime ₱9,999, with pricing‑psychology
+framing), a **coupon system** (%‑off / ₱‑off / 100%‑free), a
+**password‑gated owner coupon generator** (footer → "Owner tools"), and an
+embedded **feedback form**.
+
+> ⚠️ This is a client‑side MVP: trial limits, coupons and the owner gate are
+> tamper‑resistant but **not tamper‑proof**. Real payment capture and
+> enforcement come in the **backend phase**.
+
+**Owner setup — edit [`docs/config.js`](docs/config.js):**
+- `FEEDBACK_FORM_ENDPOINT` — paste a free [Formspree](https://formspree.io)
+  endpoint (else feedback falls back to email).
+- `CONTACT_EMAIL` — your email (manual activation + fallback).
+- `PAYMENTS.PAYMONGO_LINKS` — PayMongo payment‑link URLs per plan
+  (GCash + cards → your **BPI**).
+- `PAYMENTS.PAYPAL_ME` and drop your PayPal QR at
+  `docs/payments/paypal-qr.png` (international).
+- Prices/word limits/anchors live in `PLANS` — tweak freely.
+- The owner password is stored only as a SHA‑256 hash (never plaintext).
+
 ## What it does
 
 | Signal | What it means | What the humanizer does |
