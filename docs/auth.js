@@ -24,8 +24,7 @@
 
   async function refreshProfile() {
     if (!signedIn()) { profile = null; return null; }
-    var res = await sb.from("profiles").select("*")
-      .eq("id", session.user.id).single();
+    var res = await sb.rpc("ensure_profile");
     profile = res.data || null;
     return profile;
   }
