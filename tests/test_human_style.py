@@ -82,45 +82,21 @@ class SoftenClaimTests(unittest.TestCase):
         self.assertIn("may", low)
 
 
-class EnumerationTests(unittest.TestCase):
-    def test_long_enumeration_is_generalized(self):
-        r = _run(
-            "It selects bags, laptops, mobile phones, wallets, and keys daily."
-        )
-        low = r.text.lower()
-        # Lead items survive; the tail is generalized, nothing fabricated.
-        self.assertTrue(_has_word(low, "bags"))
-        self.assertTrue(_has_word(low, "laptops"))
-        self.assertTrue(
-            any(t in low for t in ("others", "the like", "other things"))
-        )
-        # The full five-item list no longer appears verbatim.
-        self.assertFalse(_has_word(low, "keys") and _has_word(low, "wallets"))
-
-    def test_short_list_is_left_alone(self):
-        src = "It detects bags and keys."
+class MeaningPreservedTests(unittest.TestCase):
+    def test_specific_list_is_kept_intact(self):
+        # Conservative rule no longer drops list items.
+        src = "It selects bags, laptops, mobile phones, wallets, and keys."
         r = _run(src)
-        self.assertEqual(r.text, src)
-
-
-class PeriphrasticTests(unittest.TestCase):
-    def test_concise_terms_become_formal_humanizer_phrasing(self):
-        r = _run(
-            "The object is tracked indoors by the software for the residents."
-        )
         low = r.text.lower()
-        self.assertIn("the object of interest", low)
-        self.assertIn("within the indoor environment", low)
-        self.assertIn("the individual inhabitants of those homes", low)
-        self.assertIn(
-            "the software that enables the system to function", low
-        )
+        for item in ("bags", "laptops", "wallets", "keys"):
+            self.assertTrue(_has_word(low, item), item)
 
-    def test_combined_system_phrasing(self):
-        r = _run("The combined system was evaluated for accuracy.")
-        self.assertIn(
-            "the proposed combined system altogether", r.text.lower()
-        )
+    def test_acronyms_and_model_names_are_preserved(self):
+        src = "The framework uses YOLOv8, UWB, and ArUco for detection."
+        r = Humanizer(tone="academic", strength=0.9, seed=3).humanize(src)
+        for name in ("YOLOv8", "UWB", "ArUco"):
+            self.assertIn(name, r.text, name)
+        self.assertNotIn("yOLOv8", r.text)
 
 
 class AcademicTransitionTests(unittest.TestCase):

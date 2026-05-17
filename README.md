@@ -229,5 +229,10 @@ web/build_site.py     bundles docs/ + live humanizer/ into _site for Pages
 ios/                  App Store wrapper scaffold (SwiftUI WKWebView) + plan
 ```
 
-> Note: this nudges text toward human-typical statistics; it is a writing
-> aid, not a guarantee against any specific detector.
+> Note: the pipeline runs in a **conservative, meaning-preserving** mode —
+> it favours fluent, grammatical, human-reading prose over maximizing
+> detector statistics. It makes fewer, smarter edits, protects technical
+> terms / acronyms / proper nouns (e.g. `YOLOv8`, `UWB`, `ArUco`) and
+> function words from substitution, never stacks transitions, and never
+> injects filler into formal tones. It is a writing aid, not a guarantee
+> against any specific detector.

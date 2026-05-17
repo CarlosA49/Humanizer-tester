@@ -70,10 +70,16 @@ class HumanizeTests(unittest.TestCase):
 
     def test_metrics_move_toward_human(self):
         r = Humanizer(tone="casual", strength=0.9, seed=5).humanize(AI_SAMPLE)
-        # Repetitive AI text -> humanized should be lexically richer & burstier.
+        # Repetitive AI text -> humanized output is still lexically richer.
         self.assertGreater(r.metrics_after.mattr, r.metrics_before.mattr)
+        # Burstiness: the pipeline runs in a conservative, meaning-preserving
+        # mode (chosen over detector-metric maximization, which produced
+        # garbled, robotic-reading text).  It must not *collapse* sentence
+        # variety, but it deliberately no longer chases the burstiness signal
+        # by injecting filler / over-splitting, so only a tolerant bound is
+        # asserted here.
         self.assertGreater(
-            r.metrics_after.burstiness, r.metrics_before.burstiness - 0.05
+            r.metrics_after.burstiness, r.metrics_before.burstiness - 0.25
         )
 
     def test_all_tones_run(self):

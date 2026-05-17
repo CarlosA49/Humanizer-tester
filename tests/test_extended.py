@@ -251,8 +251,11 @@ class AdvancedMetricsBehaviourTests(unittest.TestCase):
         )
         before = float(humanity_score(r.original))
         after = float(humanity_score(r.text))
-        # Tolerant: humanized should be >= original within a small margin.
-        self.assertGreaterEqual(after, before - 1.0)
+        # Conservative, meaning-preserving mode no longer maximizes the
+        # detector blend (that produced robotic, garbled text); on a
+        # pathologically repetitive sample it may dip a few points while the
+        # output stays grammatical and human-reading.  Tolerant bound only.
+        self.assertGreaterEqual(after, before - 3.0)
 
     def test_detailed_report_runs_for_every_tone(self):
         for name in list_tones():

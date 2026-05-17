@@ -57,6 +57,10 @@ _FALLBACK_SPLIT_MARKERS = (
     " so that ", " while ", " yet ",
 )
 
+# Only these voices get canned stand-alone fragments injected; formal tones
+# stay meaning-preserving.
+_FRAGMENT_TONES = {"casual", "storytelling", "witty", "friendly"}
+
 
 @dataclass
 class Context:
@@ -96,6 +100,41 @@ def _capitalize_first(sentence: str) -> str:
         if ch.isalpha():
             return s[:i] + ch.upper() + s[i + 1 :]
     return s
+
+
+def _is_proper_token(token: str) -> bool:
+    """A token that must keep its casing (acronym, model name, proper noun).
+
+    "YOLOv8", "UWB", "ArUco", "I" must never be lower-cased when a sentence
+    is re-opened with a connector/marker.  Heuristic: a digit, an all-caps
+    word, or any uppercase letter past position 0 (internal capital) marks a
+    name/acronym; a lone "I" is always kept.
+    """
+    core = re.sub(r"[^A-Za-z0-9]", "", token)
+    if not core:
+        return False
+    if core == "I":
+        return True
+    if any(c.isdigit() for c in core):
+        return True
+    if core.isupper() and len(core) > 1:
+        return True
+    return any(c.isupper() for c in core[1:])
+
+
+def _lower_first(sentence: str) -> str:
+    """Lower-case the first word only when it is an ordinary word.
+
+    Leaves acronyms / model names / proper nouns ("YOLOv8", "UWB") intact so
+    re-opening a sentence with a marker does not produce "yOLOv8".
+    """
+    s = sentence.lstrip()
+    if not s:
+        return s
+    first = s.split(None, 1)[0]
+    if _is_proper_token(first):
+        return s
+    return s[0].lower() + s[1:] if s[:1].isupper() else s
 
 
 def _surprisal_weighted_choice(rng: Random, pool: List[str]) -> str:
@@ -147,6 +186,16 @@ def strip_ai_tells(sentences: List[str], ctx: Context) -> List[str]:
     return [s for s in out if s]
 
 
+# Function words and connectors are left alone: swapping them ("and" ->
+# "plus"/"as well as", "with" -> "coupled with") is the single biggest
+# source of unnatural, machine-sounding output.
+_PROTECTED_LEX = {
+    "and", "or", "but", "nor", "so", "yet", "for", "with", "as", "of",
+    "to", "in", "on", "at", "by", "is", "are", "was", "were", "be",
+    "a", "an", "the", "this", "that", "these", "those", "it", "its",
+}
+
+
 def lexical_substitution(sentences: List[str], ctx: Context) -> List[str]:
     used: Dict[str, set] = {}
     syn = ctx.tone.synonyms
@@ -158,16 +207,26 @@ def lexical_substitution(sentences: List[str], ctx: Context) -> List[str]:
     out = []
     for sent in sentences:
         text = sent
+        # A conservative per-sentence cap keeps most of the original wording
+        # intact, so substitutions read like word choice, not word salad.
+        n_words = len(re.findall(r"[A-Za-z']+", sent))
+        budget = max(1, round(0.22 * n_words))
+        made = 0
+
         # Multi-word phrase pass first.
         for key in phrase_keys:
+            if made >= budget:
+                break
             pat = re.compile(r"\b" + re.escape(key) + r"\b", re.IGNORECASE)
 
             def _sub(m, key=key):
-                if not ctx.chance(0.62):
+                nonlocal made
+                if made >= budget or not ctx.chance(0.28):
                     return m.group(0)
                 pool = [w for w in syn[key] if w not in used.get(key, set())] or syn[key]
                 choice = _surprisal_weighted_choice(ctx.rng, pool)
                 used.setdefault(key, set()).add(choice)
+                made += 1
                 ctx.log(f"lexical: {m.group(0)!r} -> {choice!r}")
                 return _match_case(m.group(0), choice)
 
@@ -176,12 +235,20 @@ def lexical_substitution(sentences: List[str], ctx: Context) -> List[str]:
         # Single-word pass.
         tokens = _TOKEN_RE.findall(text)
         for i, tok in enumerate(tokens):
+            if made >= budget:
+                break
             low = tok.lower()
-            if low in syn and ctx.chance(0.68):
+            if (
+                low in syn
+                and low not in _PROTECTED_LEX
+                and not _is_proper_token(tok)
+                and ctx.chance(0.28)
+            ):
                 pool = [w for w in syn[low] if w not in used.get(low, set())] or syn[low]
                 choice = _surprisal_weighted_choice(ctx.rng, pool)
                 used.setdefault(low, set()).add(choice)
                 tokens[i] = _match_case(tok, choice)
+                made += 1
                 ctx.log(f"lexical: {tok!r} -> {choice!r}")
         out.append("".join(tokens))
     return out
@@ -243,6 +310,11 @@ def _split_once(sent: str, ctx: Context, lo_frac: float = 3.0):
         return None
     first = _ensure_terminal(sent[:best])
     rest = _capitalize_first(_ensure_terminal(sent[best + len(chosen) :].strip()))
+    # Never break an enumeration's ", and X" into a sub-clausal fragment
+    # ("..., and background interference." -> "Background interference.").
+    # If either side is too short to stand as a clause, don't split here.
+    if len(first.split()) < 5 or len(rest.split()) < 5:
+        return None
     return first, rest
 
 
@@ -253,26 +325,16 @@ def vary_sentence_length(sentences: List[str], ctx: Context) -> List[str]:
         sent = sentences[i].strip()
         words = sent.split()
 
-        # Split long, run-on sentences -> raises burstiness.  A lower gate and
-        # repeated passes carve sharp long/short contrasts while keeping the
-        # maximum length bounded, so the spread lands near the human target
-        # instead of blowing past it.
-        if len(words) >= 19:
+        # Split only genuine run-ons, and only once.  Conservative mode
+        # chops less: an over-split paragraph reads flat and machine-like,
+        # and keeping one long sentence among shorter ones is exactly what
+        # lifts the human length spread.
+        if len(words) >= 24:
             split = _split_once(sent, ctx)
-            if split and ctx.chance(0.88):
+            if split and ctx.chance(0.85):
                 first, rest = split
                 ctx.log("burstiness: split a long sentence")
                 out.append(first)
-                # One extra pass, and only on a still-very-long tail, so a
-                # genuine long sentence survives in the mix (it is the high
-                # end of the spread that lifts the length CV toward the human
-                # target -- carving everything flat would lower it).
-                if len(rest.split()) >= 24:
-                    nxt = _split_once(rest, ctx)
-                    if nxt and ctx.chance(0.6):
-                        mid, rest = nxt
-                        ctx.log("burstiness: split a long sentence")
-                        out.append(mid)
                 out.append(rest)
                 i += 1
                 continue
@@ -286,7 +348,7 @@ def vary_sentence_length(sentences: List[str], ctx: Context) -> List[str]:
         ):
             conn = ctx.rng.choice(ctx.tone.connectors)
             nxt = sentences[i + 1].strip()
-            merged = f"{sent.rstrip('.!?')}, {conn} {nxt[0].lower()}{nxt[1:]}"
+            merged = f"{sent.rstrip('.!?')}, {conn} {_lower_first(nxt)}"
             ctx.log("burstiness: merged two short sentences")
             out.append(_ensure_terminal(merged))
             i += 2
@@ -294,10 +356,15 @@ def vary_sentence_length(sentences: List[str], ctx: Context) -> List[str]:
 
         out.append(_ensure_terminal(sent))
 
-        # Drop a punchy stand-alone fragment after a longer sentence.  Kept
-        # moderate so short lines contrast with long ones without flooding the
-        # text and pushing the length CV past the human target.
-        if len(words) >= 14 and ctx.chance(0.45):
+        # Drop a punchy stand-alone fragment after a longer sentence -- only
+        # for narrative / casual tones, where a canned aside fits the voice.
+        # Formal tones (academic, professional, …) keep their own wording so
+        # the text stays meaning-preserving and never reads like noise.
+        if (
+            ctx.tone.name in _FRAGMENT_TONES
+            and len(words) >= 14
+            and ctx.chance(0.45)
+        ):
             frag = ctx.rng.choice(ctx.tone.fragments)
             ctx.log("burstiness: added a short fragment")
             out.append(frag)
@@ -305,24 +372,48 @@ def vary_sentence_length(sentences: List[str], ctx: Context) -> List[str]:
     return out
 
 
+# A sentence already opening with one of these reads as "marked"; adding
+# another marker on top is the stacked-transition AI tell, so we skip it.
+_LEADING_MARKERS = {
+    "however", "moreover", "furthermore", "additionally", "therefore",
+    "thus", "consequently", "hence", "notably", "crucially", "importantly",
+    "arguably", "clearly", "honestly", "overall", "first", "finally",
+    "meanwhile", "still", "instead", "besides", "ultimately", "indeed",
+    "similarly", "conversely", "nonetheless", "nevertheless", "accordingly",
+}
+
+
+def _is_marked_opening(sentence: str, ctx: Context) -> bool:
+    s = sentence.lstrip()
+    if any(s.startswith(st) for st in ctx.tone.starters):
+        return True
+    m = re.match(r"([A-Za-z']+)\s*,", s)
+    return bool(m and m.group(1).lower() in _LEADING_MARKERS)
+
+
 def inject_discourse_markers(sentences: List[str], ctx: Context) -> List[str]:
     out = []
-    budget = max(1, int(len(sentences) * (0.35 + 0.5 * ctx.strength)))
+    # Natural, not spammy: markers are allowed, but never two in a row and
+    # never stacked on an already-marked opening (the real machine tell), and
+    # proper nouns keep their casing.
+    budget = max(1, int(len(sentences) * (0.3 + 0.4 * ctx.strength)))
+    prev_added = False
     for idx, sent in enumerate(sentences):
         new = sent
-        already = any(new.startswith(s) for s in ctx.tone.starters)
-        if budget > 0 and idx != 0 and not already and ctx.chance(0.5):
+        if (
+            budget > 0
+            and idx != 0
+            and not prev_added
+            and not _is_marked_opening(new, ctx)
+            and ctx.chance(0.5)
+        ):
             starter = ctx.rng.choice(ctx.tone.starters)
-            body = new[0].lower() + new[1:] if new[:1].isupper() else new
-            new = f"{starter} {body}"
+            new = f"{starter} {_lower_first(new)}"
             ctx.log(f"voice: opened a sentence with {starter!r}")
             budget -= 1
-        elif budget > 0 and ", " in new and ctx.chance(0.25):
-            inter = ctx.rng.choice(ctx.tone.interjections)
-            head, _, tail = new.partition(", ")
-            new = f"{head}, {inter}, {tail}"
-            ctx.log(f"voice: inserted aside {inter!r}")
-            budget -= 1
+            prev_added = True
+        else:
+            prev_added = False
         out.append(new)
     return out
 

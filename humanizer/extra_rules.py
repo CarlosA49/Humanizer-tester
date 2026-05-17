@@ -13,7 +13,14 @@ from __future__ import annotations
 import re
 from typing import Callable, Dict, List, Tuple
 
-from .pipeline import Context, _capitalize_first, _ensure_terminal, _match_case
+from .pipeline import (
+    Context,
+    _capitalize_first,
+    _ensure_terminal,
+    _is_marked_opening,
+    _lower_first,
+    _match_case,
+)
 
 # --------------------------------------------------------------------------- #
 # Small shared constants
@@ -189,8 +196,7 @@ _TRIAD_RE = re.compile(
 )
 _TRIAD_TEMPLATES = (
     "{a} and {b}, along with {c}",
-    "{a}, plus {b} and {c}",
-    "{a} and {b} (and {c})",
+    "{a}, {b}, and {c}",
 )
 
 # --------------------------------------------------------------------------- #
@@ -336,39 +342,6 @@ _SOFTEN_CLAIMS: Tuple[Tuple[str, str], ...] = (
     ("will significantly", "may"),
 )
 
-# A long, specific enumeration (4+ short items) -> a shorter, more general
-# phrasing.  Items are *not* invented away into a fabricated category; the
-# lead items are kept and the tail is generalised honestly.
-_ENUM_RE = re.compile(
-    r"\b((?:[\w'-]+(?:\s+[\w'-]+){0,3}\s*,\s*){3,})"
-    r"(?:and|or)\s+([\w'-]+(?:\s+[\w'-]+){0,3})\b",
-    re.IGNORECASE,
-)
-_ENUM_TEMPLATES = (
-    "{a}, {b}, and others",
-    "{a}, {b}, among others",
-    "{a} and {b}, among other things",
-    "{a}, {b}, and the like",
-)
-
-# Concise terms -> the stiffer, more formal "humanizer" noun phrases
-# (Human-version pattern #7).
-_PERIPHRASTIC: Tuple[Tuple[str, str], ...] = (
-    ("the combined system", "the proposed combined system altogether"),
-    ("the overall system", "the proposed combined system altogether"),
-    ("the proposed system", "the proposed combined system"),
-    ("the home environment", "the indoor and household environment"),
-    ("the household environment", "the indoor and household environment"),
-    ("the residents", "the individual inhabitants of those homes"),
-    ("the occupants", "the individual inhabitants of those homes"),
-    ("the inhabitants", "the individual inhabitants of those homes"),
-    ("the objects", "the objects of interest"),
-    ("the object", "the object of interest"),
-    ("the software", "the software that enables the system to function"),
-    ("the authors", "the authors of the study"),
-    ("indoors", "within the indoor environment"),
-)
-
 
 def _split_words(sentence: str) -> List[str]:
     return sentence.split()
@@ -406,7 +379,7 @@ def reorder_clauses(sentences: List[str], ctx: Context) -> List[str]:
             sub_clause = f"{sub_word.lower()}{sub_rest}".strip()
             main = main.strip()
             if main:
-                rebuilt = f"{main[0].lower()}{main[1:]} {sub_clause}"
+                rebuilt = f"{_lower_first(main)} {sub_clause}"
                 new = _ensure_terminal(_capitalize_first(rebuilt).rstrip(".!?") + term)
                 ctx.log("structure: reordered clauses")
                 out.append(new)
@@ -426,7 +399,7 @@ def reorder_clauses(sentences: List[str], ctx: Context) -> List[str]:
             head = core_no_term[:best].strip().rstrip(",")
             tail = core_no_term[best + len(chosen) + 2 :].strip()
             if head and tail:
-                rebuilt = f"{chosen} {tail}, {head[0].lower()}{head[1:]}"
+                rebuilt = f"{chosen} {tail}, {_lower_first(head)}"
                 new = _ensure_terminal(_capitalize_first(rebuilt).rstrip(".!?") + term)
                 ctx.log("structure: reordered clauses")
                 out.append(new)
@@ -473,10 +446,10 @@ def vary_openers(sentences: List[str], ctx: Context) -> List[str]:
 
             if pick == "connector":
                 conn = ctx.rng.choice(ctx.tone.connectors)
-                rebuilt = f"{conn} {body[0].lower()}{body[1:]}"
+                rebuilt = f"{conn} {_lower_first(body)}"
             elif pick == "starter":
                 starter = ctx.rng.choice(ctx.tone.starters)
-                rebuilt = f"{starter} {body[0].lower()}{body[1:]}"
+                rebuilt = f"{starter} {_lower_first(body)}"
             else:
                 # Light rephrase: drop a leading "It"/"This"/"The" filler so
                 # the remaining content carries the opener instead.
@@ -517,7 +490,13 @@ def inject_hedges_intensifiers(sentences: List[str], ctx: Context) -> List[str]:
         new = sent
         stripped = new.strip()
         words = _split_words(stripped)
-        if len(words) < 4 or not ctx.chance(0.35):
+        # Sparing: a hedge is itself a soft tell, so most sentences keep
+        # their own voice and one is never stacked on a marked opening.
+        if (
+            len(words) < 6
+            or _is_marked_opening(stripped, ctx)
+            or not ctx.chance(0.12)
+        ):
             out.append(new)
             continue
 
@@ -539,14 +518,14 @@ def inject_hedges_intensifiers(sentences: List[str], ctx: Context) -> List[str]:
             head = body[: comma + 2]
             tail = body[comma + 2 :].strip()
             if tail:
-                rebuilt = f"{head}{phrase}, {tail[0].lower()}{tail[1:]}"
+                rebuilt = f"{head}{phrase}, {_lower_first(tail)}"
             else:
                 rebuilt = body
         else:
             # Front the phrase as a sentence adverbial rather than wedging it
             # between a determiner and its noun ("The, hedge, model" reads
             # badly).  This keeps the clause grammatical.
-            rebuilt = f"{phrase}, {body[0].lower()}{body[1:]}"
+            rebuilt = f"{phrase}, {_lower_first(body)}"
 
         new = _ensure_terminal(_capitalize_first(rebuilt).rstrip(".!?") + term)
         ctx.log(f"voice: inserted a {kind}")
@@ -797,7 +776,7 @@ def strip_ai_red_flags(sentences: List[str], ctx: Context) -> List[str]:
         new = _BUZZWORD_RE.sub(_debuzz, new)
 
         # 7. Rule-of-three list cadence -> rebalanced (no item dropped).
-        if _TRIAD_RE.search(new) and ctx.chance(0.7):
+        if _TRIAD_RE.search(new) and ctx.chance(0.25):
             tmpl = ctx.rng.choice(_TRIAD_TEMPLATES)
 
             def _rebalance(m: "re.Match", tmpl=tmpl) -> str:
@@ -920,32 +899,19 @@ def recast_openings(sentences: List[str], ctx: Context) -> List[str]:
 # --------------------------------------------------------------------------- #
 # 8. humanize_phrasing
 # --------------------------------------------------------------------------- #
-def _generalize_enum(match: "re.Match", ctx: Context) -> str:
-    """Shorten a long, specific list to its lead items + a generic tail."""
-    items = [
-        it.strip()
-        for it in match.group(1).split(",")
-        if it.strip()
-    ]
-    if len(items) < 2:
-        return match.group(0)
-    tmpl = ctx.rng.choice(_ENUM_TEMPLATES)
-    return tmpl.format(a=items[0], b=items[1])
-
-
 def humanize_phrasing(sentences: List[str], ctx: Context) -> List[str]:
-    """Apply the "Human-version" rewrite style.
+    """Apply the meaning-preserving half of the "Human-version" style.
 
     Runs after the tone paraphrase so it has the final say on register:
 
-    * heavy academic constructions -> plainer wording (more readable,
-      a little less precise -- the deliberate Human-version trade);
+    * heavy academic constructions -> plainer wording
+      ("remains dependent on" -> "still needs");
     * strong, authoritative claims -> a hedged, softer research voice
-      ("demonstrates that" -> "suggests that");
-    * concise terms -> the stiffer, more formal "humanizer" phrasing
-      ("the object" -> "the object of interest");
-    * a long, specific enumeration -> a shorter, more general phrasing
-      (lead items kept; the tail generalised, never fabricated).
+      ("demonstrates that" -> "suggests that").
+
+    The earlier list-generalising and periphrastic-expansion passes were
+    removed: the first dropped content and the second made the prose stiffer
+    and more machine-like, which is the opposite of natural human writing.
 
     Deterministic given ``ctx.rng``; it draws no randomness unless a
     pattern actually matches, so untouched text is bit-for-bit unchanged
@@ -979,24 +945,6 @@ def humanize_phrasing(sentences: List[str], ctx: Context) -> List[str]:
                 )
                 changed = True
                 ctx.log("style: softened an over-strong claim")
-
-        for phrase, repl in _PERIPHRASTIC:
-            pat = re.compile(r"\b" + re.escape(phrase) + r"\b", re.IGNORECASE)
-            if pat.search(new) and ctx.chance(0.85):
-                new = pat.sub(
-                    lambda m, r=repl: _match_case(m.group(0), r), new
-                )
-                changed = True
-                ctx.log("style: used a more formal phrasing")
-
-        if _ENUM_RE.search(new) and ctx.chance(0.8):
-            generalized = _ENUM_RE.sub(
-                lambda m: _generalize_enum(m, ctx), new, count=1
-            )
-            if generalized != new and _has_alpha(generalized):
-                new = generalized
-                changed = True
-                ctx.log("style: generalized a long enumeration")
 
         if not _has_alpha(new):
             out.append(original)
