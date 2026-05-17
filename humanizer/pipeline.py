@@ -343,6 +343,7 @@ RULES.update(EXTRA_RULES)
 
 DEFAULT_PIPELINE = [
     "strip_ai_tells",
+    "strip_ai_red_flags",
     "prune_redundancy",
     "lexical_substitution",
     "adjust_contractions",
@@ -358,20 +359,21 @@ DEFAULT_PIPELINE = [
 # back to DEFAULT_PIPELINE.
 TONE_PIPELINES: Dict[str, List[str]] = {
     "academic": [
-        "strip_ai_tells", "prune_redundancy", "lexical_substitution",
-        "adjust_contractions", "reorder_clauses", "inject_hedges_intensifiers",
-        "vary_sentence_length", "vary_openers", "inject_discourse_markers",
+        "strip_ai_tells", "strip_ai_red_flags", "prune_redundancy",
+        "lexical_substitution", "adjust_contractions", "reorder_clauses",
+        "inject_hedges_intensifiers", "vary_sentence_length", "vary_openers",
+        "inject_discourse_markers",
     ],
     "confident": [
-        "strip_ai_tells", "prune_redundancy", "soften_passive",
-        "lexical_substitution", "adjust_contractions",
+        "strip_ai_tells", "strip_ai_red_flags", "prune_redundancy",
+        "soften_passive", "lexical_substitution", "adjust_contractions",
         "inject_hedges_intensifiers", "vary_sentence_length",
         "vary_openers", "inject_discourse_markers",
     ],
     "storytelling": [
-        "strip_ai_tells", "lexical_substitution", "adjust_contractions",
-        "reorder_clauses", "vary_sentence_length", "vary_openers",
-        "inject_discourse_markers",
+        "strip_ai_tells", "strip_ai_red_flags", "lexical_substitution",
+        "adjust_contractions", "reorder_clauses", "vary_sentence_length",
+        "vary_openers", "inject_discourse_markers",
     ],
 }
 

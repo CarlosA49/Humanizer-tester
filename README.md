@@ -117,22 +117,27 @@ python3 -m humanizer --list-tones
 
 ## Pipeline rules
 
-Ten independent, swappable rules. The default order (tones may reorder via
+Eleven independent, swappable rules. The default order (tones may reorder via
 `TONE_PIPELINES`):
 
 1. `strip_ai_tells` — removes giveaways ("it is important to note that",
    "in conclusion", "delve into", …).
-2. `prune_redundancy` — cuts padding ("due to the fact that" → "because"),
+2. `strip_ai_red_flags` — scrubs the classic tells of AI writing: em-dash
+   overuse, "not just X, it's Y" / "not only X but also Y" parallel
+   scaffolds, the rule-of-three list cadence, vague corporate buzzwords
+   ("elevate", "robust", "leverage", …), exaggerated impersonal praise,
+   forced clichéd analogies and redundant filler preamble.
+3. `prune_redundancy` — cuts padding ("due to the fact that" → "because"),
    doubled intensifiers, adjacent duplicate words.
-3. `lexical_substitution` — tone-aware, variety-preserving paraphrasing of
+4. `lexical_substitution` — tone-aware, variety-preserving paraphrasing of
    single words **and** multi-word phrases.
-4. `adjust_contractions` — contract / expand to match the tone's register.
-5. `reorder_clauses` — flips leading/trailing subordinate clauses.
-6. `soften_passive` — nudges agentless passive toward active.
-7. `vary_sentence_length` — split, merge, fragment → burstiness.
-8. `inject_hedges_intensifiers` — tone-aware hedges/intensifiers.
-9. `vary_openers` — breaks up repeated sentence-opening words.
-10. `inject_discourse_markers` — tone starters & asides → human texture.
+5. `adjust_contractions` — contract / expand to match the tone's register.
+6. `reorder_clauses` — flips leading/trailing subordinate clauses.
+7. `soften_passive` — nudges agentless passive toward active.
+8. `vary_sentence_length` — split, merge, fragment → burstiness.
+9. `inject_hedges_intensifiers` — tone-aware hedges/intensifiers.
+10. `vary_openers` — breaks up repeated sentence-opening words.
+11. `inject_discourse_markers` — tone starters & asides → human texture.
 
 A final pass repairs `a`/`an` after substitutions.
 
@@ -199,7 +204,8 @@ humanizer/
   tones.py            tone definitions; layers in the dictionaries pack
   dictionaries.py     large per-tone vocabulary pack (optional, auto-loaded)
   pipeline.py         the rule engine + core rules + per-tone pipelines
-  extra_rules.py      reorder / openers / hedges / prune / passive rules
+  extra_rules.py      reorder / openers / hedges / prune / passive /
+                      ai-red-flag rules
   core.py             Humanizer API + before/after metrics
   cli.py              command-line interface
 tests/                unittest suites (test_humanizer, test_extended)
