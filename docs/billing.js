@@ -40,7 +40,15 @@
     var b = el("trialBanner");
     if (!b) return;
     if (unlocked()) {
-      b.innerHTML = '<span class="ok">✓ Full access unlocked — thank you!</span>';
+      var u = {};
+      try { u = JSON.parse(localStorage.getItem(LS_UNLOCK) || "{}"); } catch (e) {}
+      var m = planMeta(u.plan || "");
+      b.innerHTML =
+        '<span class="ok">✓ ' + m.name +
+        " unlocked on this device — thank you!</span>" +
+        '<span class="muted">Up to ' + m.devices + " device" +
+        (m.devices > 1 ? "s" : "") +
+        " · multi-device sync activates with accounts</span>";
       return;
     }
     var r = remaining();
@@ -63,13 +71,33 @@
   // ---- coupons -----------------------------------------------------------
   // Code: PLAN-KIND-VALUE-EXP-SIG  (EXP = epoch-days, 0 = never)
   var PLAN_TOKEN = {
-    STARTER: "starter", PRO: "pro", UNLI: "unlimited",
+    STARTER: "starter", PRO: "pro", SEMI: "semiannual", UNLI: "unlimited",
     ANNUAL: "annual", LIFE: "lifetime", ALL: "all",
   };
   var TOKEN_FOR = {
-    starter: "STARTER", pro: "PRO", unlimited: "UNLI",
+    starter: "STARTER", pro: "PRO", semiannual: "SEMI", unlimited: "UNLI",
     annual: "ANNUAL", lifetime: "LIFE", all: "ALL",
   };
+  function periodLabel(p) {
+    return p === "mo" ? "/mo" : p === "6mo" ? " /6 mo"
+         : p === "yr" ? "/yr" : " one-time";
+  }
+  function deviceId() {
+    var d = localStorage.getItem("hmz_device_id");
+    if (!d) {
+      d = (crypto.randomUUID ? crypto.randomUUID()
+            : String(Date.now()) + Math.random()).slice(0, 18);
+      localStorage.setItem("hmz_device_id", d);
+    }
+    return d;
+  }
+  function planMeta(planId) {
+    var p = CFG.PLANS.filter(function (x) { return x.id === planId; })[0];
+    if (p) return { name: p.name, devices: p.devices };
+    var c = (CFG.CODE_ONLY || {})[planId];
+    if (c) return { name: c.name, devices: c.devices };
+    return { name: planId, devices: 1 };
+  }
   function epochDays() { return Math.floor(Date.now() / 86400000); }
 
   async function signPayload(plan, kind, value, exp) {
@@ -103,11 +131,14 @@
     if (!r.ok) return r;
     if (r.kind === "FREE") {
       localStorage.setItem(LS_UNLOCK, JSON.stringify({
-        plan: r.plan, code: raw.trim().toUpperCase(), ts: Date.now(),
+        plan: r.plan, code: raw.trim().toUpperCase(),
+        ts: Date.now(), device: deviceId(),
       }));
       refreshBanner();
+      var fm = planMeta(r.plan);
       return { ok: true, free: true,
-        msg: "Access unlocked — enjoy! (" + r.plan + ")" };
+        msg: fm.name + " unlocked on this device — enjoy! (up to " +
+          fm.devices + " device" + (fm.devices > 1 ? "s" : "") + ")" };
     }
     appliedDiscount = { plan: r.plan, kind: r.kind, value: r.value };
     renderPricing();
@@ -132,13 +163,14 @@
   // ---- pricing UI --------------------------------------------------------
   function planCard(plan) {
     var dp = discountedPrice(plan);
-    var per = plan.period === "mo" ? "/mo" : plan.period === "yr" ? "/yr" : " one-time";
+    var per = periodLabel(plan.period);
     var hasDisc = dp !== plan.now;
     return (
       '<div class="plan' + (plan.popular ? " popular" : "") + '">' +
       (plan.popular ? '<div class="tag">★ Most popular</div>' : "") +
       (plan.highlight ? '<div class="tag alt">' + plan.highlight + "</div>" : "") +
       "<h3>" + plan.name + "</h3>" +
+      '<div class="best">' + plan.best + "</div>" +
       '<div class="price">' +
         '<span class="was">' + peso(plan.was) + "</span> " +
         '<span class="now">' + peso(dp) + "</span>" +
@@ -147,6 +179,8 @@
       (hasDisc ? '<div class="couponed">coupon applied</div>'
                : '<div class="save">Launch price</div>') +
       '<div class="words">' + plan.words + "</div>" +
+      '<div class="devs">🖥 Up to ' + plan.devices + " device" +
+        (plan.devices > 1 ? "s" : "") + "</div>" +
       "<ul>" + plan.perks.map(function (p) { return "<li>" + p + "</li>"; }).join("") + "</ul>" +
       '<button class="primary buy" data-plan="' + plan.id + '">Choose ' + plan.name + "</button>" +
       "</div>"
@@ -189,8 +223,10 @@
     var link = CFG.PAYMENTS.PAYMONGO_LINKS[plan.id];
     var body = el("checkoutBody");
     body.innerHTML =
-      "<h3>" + plan.name + " — " + peso(dp) +
-        (plan.period === "mo" ? "/mo" : plan.period === "yr" ? "/yr" : " once") + "</h3>" +
+      "<h3>" + plan.name + " — " + peso(dp) + periodLabel(plan.period) + "</h3>" +
+      '<p class="muted">Usable on up to ' + plan.devices + " device" +
+        (plan.devices > 1 ? "s" : "") +
+        " (device binding enforced once accounts launch).</p>" +
       (dp !== plan.now ? '<p class="couponed">Coupon discount applied.</p>' : "") +
       '<ol class="paysteps">' +
         "<li><strong>GCash / card (Philippines)</strong> via PayMongo → settles to the owner's BPI." +

@@ -36,9 +36,9 @@ window.HUMANIZER_CONFIG = {
     PAYMONGO_LINKS: {
       starter: "", // TODO(owner)
       pro: "",
+      semiannual: "",
       unlimited: "",
       annual: "",
-      lifetime: "",
     },
     // International: your personal PayPal QR. Drop the image at
     // docs/payments/paypal-qr.png (you'll send it). Optional PayPal.me link:
@@ -46,32 +46,48 @@ window.HUMANIZER_CONFIG = {
   },
 
   // Launch pricing (introductory). `was` is the anchor (shown struck through).
-  // Amounts in PHP. `period`: mo | yr | once.
+  // Amounts in PHP. `period`: mo | 6mo | yr. `devices`: soft limit shown to
+  // users; real per-device binding is enforced in the backend phase.
   PLANS: [
     {
       id: "starter", name: "Starter", period: "mo",
-      was: 999, now: 499, words: "25,000 words / month",
+      was: 999, now: 499, words: "10,000 words / month",
+      devices: 1, best: "Best for trying it on real work",
       perks: ["All 9 tones", "Perplexity • burstiness • lexical", "Works offline"],
     },
     {
       id: "pro", name: "Pro", period: "mo", popular: true,
-      was: 1599, now: 799, words: "100,000 words / month",
-      perks: ["Everything in Starter", "4x the words", "Priority new features"],
+      was: 1599, now: 799, words: "60,000 words / month",
+      devices: 2, best: "Best for regular writers",
+      perks: ["Everything in Starter", "6x the words", "Priority new features"],
     },
     {
-      id: "unlimited", name: "Unlimited", period: "mo",
-      was: 2999, now: 1499, words: "Unlimited (fair use)",
-      perks: ["Everything in Pro", "No monthly word cap", "Best for heavy users"],
+      id: "semiannual", name: "Pro Semi-Annual", period: "6mo",
+      highlight: "Save 2 months",
+      was: 4794, now: 3990, words: "60,000 words / month, billed every 6 months",
+      devices: 2, best: "Best for steady users who want a deal",
+      perks: ["Pro for 6 months", "≈ ₱665 / month", "Cheaper than monthly"],
     },
     {
       id: "annual", name: "Pro Annual", period: "yr", highlight: "Best value",
-      was: 15990, now: 7990, words: "100,000 words / month, billed yearly",
-      perks: ["Pro, all year", "≈ ₱666 / month", "2+ months free vs monthly"],
+      was: 9588, now: 6990, words: "60,000 words / month, billed yearly",
+      devices: 3, best: "Best overall — lowest monthly cost",
+      perks: ["Pro, all year", "≈ ₱582 / month", "3 months free vs monthly"],
     },
     {
-      id: "lifetime", name: "Lifetime", period: "once", highlight: "Pay once",
-      was: 19999, now: 9999, words: "Pro features — forever",
-      perks: ["One payment, no renewals", "All future updates", "Founder supporter"],
+      id: "unlimited", name: "Unlimited", period: "mo",
+      was: 8999, now: 5000, words: "Unlimited words (fair use)",
+      devices: 5, best: "Best for teams & heavy users",
+      perks: ["Everything in Pro", "No monthly word cap", "Most devices"],
     },
   ],
+
+  // Hidden plan — never shown on the page. Granted only via an owner-issued
+  // code (Owner tools → plan "LIFE", type "FREE"). Redeeming it unlocks
+  // full access on the redeeming device.
+  CODE_ONLY: {
+    lifetime: {
+      name: "Lifetime", devices: 3, words: "Pro features — forever",
+    },
+  },
 };

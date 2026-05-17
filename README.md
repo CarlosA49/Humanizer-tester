@@ -31,11 +31,23 @@ Pure Python, **standard library only** (no models, no network, no installs).
 ## Plans, trial, coupons & feedback (MVP)
 
 A no‑backend launch MVP is built in: a **500‑word free trial**, an
-introductory‑priced plans page (Starter ₱499 / Pro ₱799 / Unlimited ₱1,499
-monthly · Pro Annual ₱7,990 · Lifetime ₱9,999, with pricing‑psychology
-framing), a **coupon system** (%‑off / ₱‑off / 100%‑free), a
-**password‑gated owner coupon generator** (footer → "Owner tools"), and an
-embedded **feedback form**.
+introductory‑priced plans page with pricing‑psychology framing, a **coupon
+system** (%‑off / ₱‑off / 100%‑free), a **password‑gated owner coupon
+generator** (footer → "Owner tools"), and an embedded **feedback form**.
+
+| Plan | Launch price | Words | Devices |
+|---|---|---|---|
+| Starter /mo | ₱499 | 10,000 / mo | 1 |
+| Pro /mo ★ | ₱799 | 60,000 / mo | 2 |
+| Pro Semi‑Annual (6 mo) | ₱3,990 | 60,000 / mo | 2 |
+| Pro Annual | ₱6,990 | 60,000 / mo | 3 |
+| Unlimited /mo | ₱5,000 | Unlimited (fair use) | 5 |
+| **Lifetime** (code‑only) | not listed | Pro forever | 3 |
+
+**Lifetime is never shown on the page** — issue it from Owner tools (plan
+`LIFE`, type `FREE`); redeeming the code unlocks full access on that device.
+Device limits are shown to users now and **enforced server‑side in the
+backend phase** (client‑side device binding alone is bypassable).
 
 > ⚠️ This is a client‑side MVP: trial limits, coupons and the owner gate are
 > tamper‑resistant but **not tamper‑proof**. Real payment capture and
