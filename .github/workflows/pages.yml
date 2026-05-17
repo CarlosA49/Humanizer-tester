@@ -37,11 +37,13 @@ jobs:
           path: _site
           retention-days: 7
 
-  # Publishes to GitHub Pages. Requires a one-time repo setting:
-  # Settings -> Pages -> Build and deployment -> Source = "GitHub Actions".
-  # Until that is set this job (only) fails; `test` above stays green.
+  # Publishes to GitHub Pages. The `github-pages` environment only permits
+  # deployments from the default branch, so this job runs on `main` only
+  # (on feature branches it is skipped, not failed). Requires the one-time
+  # repo setting: Settings -> Pages -> Source = "GitHub Actions".
   deploy:
     needs: test
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     environment:
       name: github-pages

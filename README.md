@@ -1,29 +1,32 @@
 # Humanizer-tester
 
-[![Try it live](https://img.shields.io/badge/Try%20it%20live-Humanizer%20web%20app-3b82f6?style=for-the-badge)](https://carlosa49.github.io/Humanizer-tester/)
-[![Tests](https://img.shields.io/badge/tests-41%20passing-22c55e?style=flat-square)](tests/)
-[![Runs in browser](https://img.shields.io/badge/runtime-Pyodide%20(no%20server)-9aa7b4?style=flat-square)](docs/)
+[![Open the app](https://img.shields.io/badge/▶%20Open%20the%20app-Tap%20here-3b82f6?style=for-the-badge)](https://carlosa49.github.io/Humanizer-tester/)
+[![Install on iPhone](https://img.shields.io/badge/Install%20on%20iPhone-Add%20to%20Home%20Screen-000000?style=for-the-badge&logo=apple)](https://carlosa49.github.io/Humanizer-tester/)
 
-> **▶ Live app: https://carlosa49.github.io/Humanizer-tester/**
+# 📲 Get the app
+
+**Open this link on your phone, then add it to your Home Screen — it becomes an app.**
+
+### 👉 https://carlosa49.github.io/Humanizer-tester/
+
+| Device | How to install (takes 5 seconds) |
+|---|---|
+| **iPhone / iPad** | Open the link in **Safari** → tap the **Share** button → **Add to Home Screen** → **Add**. |
+| **Android** | Open the link in **Chrome** → menu **⋮** → **Install app**. |
+| **Computer** | Open in **Chrome/Edge** → click the **Install** icon in the address bar. |
+
+You get a real app icon, it opens full‑screen, and it **works offline** after
+the first open. Delete it like any app and re‑add it from the link anytime.
+Nothing is uploaded — it all runs on your device. *(No App Store needed; a
+native App Store build is also scaffolded in [`ios/`](ios/).)*
+
+---
 
 An **AI Humanizer**: it rewrites machine-sounding text into a chosen human
 **tone** while measuring and improving the three signals AI-text detectors
 care about most — **perplexity**, **burstiness**, and **lexical diversity**.
 
 Pure Python, **standard library only** (no models, no network, no installs).
-
-### Try it in your browser
-
-**▶ https://carlosa49.github.io/Humanizer-tester/**
-
-A full web app that runs the humanizer **entirely in your browser** (Python
-via Pyodide/WASM) — no server, nothing uploaded. First visit downloads a
-~6 MB runtime, then it's instant. Source for the app lives in [`docs/`](docs/)
-and is deployed by [`.github/workflows/pages.yml`](.github/workflows/pages.yml).
-
-> One-time repo setting to publish it: **Settings → Pages → Build and
-> deployment → Source = "GitHub Actions"**. The workflow then deploys on
-> every push and prints the live URL in its run summary.
 
 ## What it does
 
@@ -140,9 +143,11 @@ humanizer/
   cli.py              command-line interface
 tests/                unittest suites (test_humanizer, test_extended)
 examples/             per-tone sample inputs
-docs/                 in-browser web app (Pyodide): index.html, app.js, styles.css
+docs/                 installable web app (PWA): index.html, app.js, styles.css,
+                      manifest.webmanifest, sw.js (offline), icons/
 web/build_site.py     bundles docs/ + live humanizer/ into _site for Pages
 .github/workflows/    CI: runs tests, builds & deploys the web app to Pages
+ios/                  App Store wrapper scaffold (SwiftUI WKWebView) + plan
 ```
 
 > Note: this nudges text toward human-typical statistics; it is a writing
