@@ -25,10 +25,10 @@ window.HUMANIZER_CONFIG = {
   // MVP. To enable: create a free project at https://supabase.com, run
   // supabase/schema.sql in its SQL editor, enable Email auth, then paste:
   //   Project URL  -> SUPABASE_URL
-  //   anon public key (safe to ship; protected by row-level security)
-  //                  -> SUPABASE_ANON_KEY
-  SUPABASE_URL: "", // TODO(owner): https://xxxx.supabase.co
-  SUPABASE_ANON_KEY: "", // TODO(owner): anon public key
+  //   publishable / anon key (safe to ship; protected by row-level
+  //   security + SECURITY DEFINER functions) -> SUPABASE_ANON_KEY
+  SUPABASE_URL: "https://flsaixowqtqsxrtyztai.supabase.co",
+  SUPABASE_ANON_KEY: "sb_publishable_GZjeZ5OsMpMEUPrba_HNcg_HnH9wgW6",
 
 
   // Where customer feedback goes. Get a free endpoint at https://formspree.io
