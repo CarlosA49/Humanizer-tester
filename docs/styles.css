@@ -147,9 +147,9 @@ button.ghost{background:var(--panel2);color:var(--text);border:1px solid var(--l
 .star.on{color:#f5b301}
 footer .dot{color:var(--line);margin:0 8px}
 footer #ownerLink,footer #accountLink{color:var(--muted)}
-#authBody h3{margin-top:0}
-#authBody input{display:block;width:100%;margin:8px 0;background:var(--panel2);
-  color:var(--text);border:1px solid var(--line);border-radius:8px;
-  padding:10px;font:inherit}
+#authBody h3,#devBody h3{margin-top:0}
+#authBody input,#devBody input{display:block;width:100%;margin:8px 0;
+  background:var(--panel2);color:var(--text);border:1px solid var(--line);
+  border-radius:8px;padding:10px;font:inherit}
 .authrow{display:flex;justify-content:space-between;gap:8px;margin:10px 0;
   flex-wrap:wrap}
