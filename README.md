@@ -1,44 +1,32 @@
 # Humanizer-tester
 
-[![Try it live](https://img.shields.io/badge/Try%20it%20live-Humanizer%20web%20app-3b82f6?style=for-the-badge)](https://carlosa49.github.io/Humanizer-tester/)
-[![Tests](https://img.shields.io/badge/tests-41%20passing-22c55e?style=flat-square)](tests/)
-[![Runs in browser](https://img.shields.io/badge/runtime-Pyodide%20(no%20server)-9aa7b4?style=flat-square)](docs/)
+[![Open the app](https://img.shields.io/badge/▶%20Open%20the%20app-Tap%20here-3b82f6?style=for-the-badge)](https://carlosa49.github.io/Humanizer-tester/)
+[![Install on iPhone](https://img.shields.io/badge/Install%20on%20iPhone-Add%20to%20Home%20Screen-000000?style=for-the-badge&logo=apple)](https://carlosa49.github.io/Humanizer-tester/)
 
-> **▶ Live app: https://carlosa49.github.io/Humanizer-tester/**
+# 📲 Get the app
+
+**Open this link on your phone, then add it to your Home Screen — it becomes an app.**
+
+### 👉 https://carlosa49.github.io/Humanizer-tester/
+
+| Device | How to install (takes 5 seconds) |
+|---|---|
+| **iPhone / iPad** | Open the link in **Safari** → tap the **Share** button → **Add to Home Screen** → **Add**. |
+| **Android** | Open the link in **Chrome** → menu **⋮** → **Install app**. |
+| **Computer** | Open in **Chrome/Edge** → click the **Install** icon in the address bar. |
+
+You get a real app icon, it opens full‑screen, and it **works offline** after
+the first open. Delete it like any app and re‑add it from the link anytime.
+Nothing is uploaded — it all runs on your device. *(No App Store needed; a
+native App Store build is also scaffolded in [`ios/`](ios/).)*
+
+---
 
 An **AI Humanizer**: it rewrites machine-sounding text into a chosen human
 **tone** while measuring and improving the three signals AI-text detectors
 care about most — **perplexity**, **burstiness**, and **lexical diversity**.
 
 Pure Python, **standard library only** (no models, no network, no installs).
-
-### Try it in your browser
-
-**▶ https://carlosa49.github.io/Humanizer-tester/**
-
-A full web app that runs the humanizer **entirely in your browser** (Python
-via Pyodide/WASM) — no server, nothing uploaded. First visit downloads a
-~6 MB runtime, then it's instant. Source for the app lives in [`docs/`](docs/)
-and is deployed by [`.github/workflows/pages.yml`](.github/workflows/pages.yml).
-
-> One-time repo setting to publish it: the repo must be **public** (free
-> plan) and **Settings → Pages → Source = "GitHub Actions"**.
-
-### Install it as an app (iPhone / Android / desktop)
-
-The web app is a **PWA** — install it to your home screen, no app store:
-
-- **iPhone (Safari):** open the link → tap **Share** → **Add to Home
-  Screen**. An app icon appears; it launches full‑screen and works
-  **offline** after the first load. Delete it like any app; re‑add anytime
-  from the link.
-- **Android (Chrome):** open the link → menu **⋮** → **Install app** /
-  **Add to Home screen**.
-- **Desktop (Chrome/Edge):** an **Install** icon appears in the address bar.
-
-A native **App Store** wrapper (for a real store listing) is scaffolded in
-[`ios/`](ios/) with full build/submit instructions — that path needs a Mac,
-Xcode, and an Apple Developer account.
 
 ## What it does
 
