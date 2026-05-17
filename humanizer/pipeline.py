@@ -255,13 +255,50 @@ RULES: Dict[str, Callable[[List[str], Context], List[str]]] = {
     "inject_discourse_markers": inject_discourse_markers,
 }
 
+# Registered after definition to avoid a circular import (extra_rules imports
+# Context and the helpers from this module).
+from .extra_rules import EXTRA_RULES  # noqa: E402
+
+RULES.update(EXTRA_RULES)
+
 DEFAULT_PIPELINE = [
     "strip_ai_tells",
+    "prune_redundancy",
     "lexical_substitution",
     "adjust_contractions",
+    "reorder_clauses",
+    "soften_passive",
     "vary_sentence_length",
+    "inject_hedges_intensifiers",
+    "vary_openers",
     "inject_discourse_markers",
 ]
+
+# Tones can override the rule order / subset.  Anything not listed here falls
+# back to DEFAULT_PIPELINE.
+TONE_PIPELINES: Dict[str, List[str]] = {
+    "academic": [
+        "strip_ai_tells", "prune_redundancy", "lexical_substitution",
+        "adjust_contractions", "reorder_clauses", "inject_hedges_intensifiers",
+        "vary_sentence_length", "vary_openers", "inject_discourse_markers",
+    ],
+    "confident": [
+        "strip_ai_tells", "prune_redundancy", "soften_passive",
+        "lexical_substitution", "adjust_contractions",
+        "inject_hedges_intensifiers", "vary_sentence_length",
+        "vary_openers", "inject_discourse_markers",
+    ],
+    "storytelling": [
+        "strip_ai_tells", "lexical_substitution", "adjust_contractions",
+        "reorder_clauses", "vary_sentence_length", "vary_openers",
+        "inject_discourse_markers",
+    ],
+}
+
+
+def pipeline_for_tone(tone_name: str) -> "Pipeline":
+    """Return the preferred :class:`Pipeline` for ``tone_name``."""
+    return Pipeline(rules=list(TONE_PIPELINES.get(tone_name, DEFAULT_PIPELINE)))
 
 
 @dataclass

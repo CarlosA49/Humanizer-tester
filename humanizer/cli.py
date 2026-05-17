@@ -44,6 +44,11 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--seed", type=int, default=None, help="Seed for reproducible output.")
     p.add_argument("-f", "--file", help="Read input text from a file.")
     p.add_argument("--metrics", action="store_true", help="Print before/after metrics.")
+    p.add_argument(
+        "--report", action="store_true",
+        help="Print detailed advanced metrics (bigram perplexity, MTLD, "
+        "burstiness profile, humanity score) before/after.",
+    )
     p.add_argument("--changes", action="store_true", help="Print the change log.")
     p.add_argument("--list-tones", action="store_true", help="List available tones and exit.")
     return p
@@ -75,6 +80,14 @@ def main(argv: Optional[List[str]] = None) -> int:
     if args.metrics:
         print("\n--- metrics ---", file=sys.stderr)
         print(result.summary(), file=sys.stderr)
+    if args.report:
+        from .advanced_metrics import detailed_report
+        import json
+
+        print("\n--- detailed report (before) ---", file=sys.stderr)
+        print(json.dumps(detailed_report(text), indent=2), file=sys.stderr)
+        print("\n--- detailed report (after) ---", file=sys.stderr)
+        print(json.dumps(detailed_report(result.text), indent=2), file=sys.stderr)
     if args.changes:
         print("\n--- changes ---", file=sys.stderr)
         for c in result.changes:

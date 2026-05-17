@@ -7,8 +7,9 @@ from dataclasses import dataclass
 from random import Random
 from typing import List, Optional
 
+from .advanced_metrics import humanity_score
 from .metrics import TextMetrics, analyze, split_sentences
-from .pipeline import Context, Pipeline
+from .pipeline import Context, Pipeline, pipeline_for_tone
 from .tones import Tone, get_tone, list_tones
 
 __all__ = ["Humanizer", "HumanizeResult", "list_tones"]
@@ -44,6 +45,12 @@ class HumanizeResult:
     metrics_before: TextMetrics
     metrics_after: TextMetrics
     changes: List[str]
+    humanity_before: float = 0.0
+    humanity_after: float = 0.0
+
+    @property
+    def humanity_delta(self) -> float:
+        return self.humanity_after - self.humanity_before
 
     @property
     def perplexity_delta(self) -> float:
@@ -66,7 +73,9 @@ class HumanizeResult:
             f"  burstiness {b.burstiness:7.3f} -> {a.burstiness:7.3f} "
             f"({self.burstiness_delta:+.3f})\n"
             f"  lexical    {b.mattr:7.3f} -> {a.mattr:7.3f} "
-            f"({self.lexical_delta:+.3f})"
+            f"({self.lexical_delta:+.3f})\n"
+            f"  humanity   {self.humanity_before:7.1f} -> {self.humanity_after:7.1f} "
+            f"({self.humanity_delta:+.1f}) / 100"
         )
 
 
@@ -91,7 +100,7 @@ class Humanizer:
         self.tone: Tone = get_tone(tone)
         self.strength = max(0.0, min(1.0, float(strength)))
         self.seed = seed
-        self.pipeline = pipeline or Pipeline()
+        self.pipeline = pipeline or pipeline_for_tone(self.tone.name)
 
     def humanize(self, text: str) -> HumanizeResult:
         original = text or ""
@@ -114,4 +123,6 @@ class Humanizer:
             metrics_before=metrics_before,
             metrics_after=analyze(result_text),
             changes=ctx.changes,
+            humanity_before=humanity_score(original),
+            humanity_after=humanity_score(result_text),
         )
