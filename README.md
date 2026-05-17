@@ -117,7 +117,7 @@ python3 -m humanizer --list-tones
 
 ## Pipeline rules
 
-Eleven independent, swappable rules. The default order (tones may reorder via
+Twelve independent, swappable rules. The default order (tones may reorder via
 `TONE_PIPELINES`):
 
 1. `strip_ai_tells` — removes giveaways ("it is important to note that",
@@ -127,17 +127,22 @@ Eleven independent, swappable rules. The default order (tones may reorder via
    scaffolds, the rule-of-three list cadence, vague corporate buzzwords
    ("elevate", "robust", "leverage", …), exaggerated impersonal praise,
    forced clichéd analogies and redundant filler preamble.
-3. `prune_redundancy` — cuts padding ("due to the fact that" → "because"),
+3. `recast_openings` — paraphrases / reconstructs the opening of the
+   paragraph (its introduction) and of each sentence: templated meta-intros
+   ("In this article we will explore X" → "X"), empty-subject "there is/are
+   X that …", "it is <adj> that …", throat-clearing lead-ins and nominalized
+   openers are rebuilt, then fed through the paraphrase below.
+4. `prune_redundancy` — cuts padding ("due to the fact that" → "because"),
    doubled intensifiers, adjacent duplicate words.
-4. `lexical_substitution` — tone-aware, variety-preserving paraphrasing of
+5. `lexical_substitution` — tone-aware, variety-preserving paraphrasing of
    single words **and** multi-word phrases.
-5. `adjust_contractions` — contract / expand to match the tone's register.
-6. `reorder_clauses` — flips leading/trailing subordinate clauses.
-7. `soften_passive` — nudges agentless passive toward active.
-8. `vary_sentence_length` — split, merge, fragment → burstiness.
-9. `inject_hedges_intensifiers` — tone-aware hedges/intensifiers.
-10. `vary_openers` — breaks up repeated sentence-opening words.
-11. `inject_discourse_markers` — tone starters & asides → human texture.
+6. `adjust_contractions` — contract / expand to match the tone's register.
+7. `reorder_clauses` — flips leading/trailing subordinate clauses.
+8. `soften_passive` — nudges agentless passive toward active.
+9. `vary_sentence_length` — split, merge, fragment → burstiness.
+10. `inject_hedges_intensifiers` — tone-aware hedges/intensifiers.
+11. `vary_openers` — breaks up repeated sentence-opening words.
+12. `inject_discourse_markers` — tone starters & asides → human texture.
 
 A final pass repairs `a`/`an` after substitutions.
 
@@ -205,7 +210,7 @@ humanizer/
   dictionaries.py     large per-tone vocabulary pack (optional, auto-loaded)
   pipeline.py         the rule engine + core rules + per-tone pipelines
   extra_rules.py      reorder / openers / hedges / prune / passive /
-                      ai-red-flag rules
+                      ai-red-flag / opening-recast rules
   core.py             Humanizer API + before/after metrics
   cli.py              command-line interface
 tests/                unittest suites (test_humanizer, test_extended)
