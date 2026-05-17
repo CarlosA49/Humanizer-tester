@@ -103,6 +103,26 @@ class EnumerationTests(unittest.TestCase):
         self.assertEqual(r.text, src)
 
 
+class PeriphrasticTests(unittest.TestCase):
+    def test_concise_terms_become_formal_humanizer_phrasing(self):
+        r = _run(
+            "The object is tracked indoors by the software for the residents."
+        )
+        low = r.text.lower()
+        self.assertIn("the object of interest", low)
+        self.assertIn("within the indoor environment", low)
+        self.assertIn("the individual inhabitants of those homes", low)
+        self.assertIn(
+            "the software that enables the system to function", low
+        )
+
+    def test_combined_system_phrasing(self):
+        r = _run("The combined system was evaluated for accuracy.")
+        self.assertIn(
+            "the proposed combined system altogether", r.text.lower()
+        )
+
+
 class AcademicTransitionTests(unittest.TestCase):
     def test_academic_tone_has_transition_starters(self):
         starters = get_tone("academic").starters

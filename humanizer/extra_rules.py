@@ -351,6 +351,24 @@ _ENUM_TEMPLATES = (
     "{a}, {b}, and the like",
 )
 
+# Concise terms -> the stiffer, more formal "humanizer" noun phrases
+# (Human-version pattern #7).
+_PERIPHRASTIC: Tuple[Tuple[str, str], ...] = (
+    ("the combined system", "the proposed combined system altogether"),
+    ("the overall system", "the proposed combined system altogether"),
+    ("the proposed system", "the proposed combined system"),
+    ("the home environment", "the indoor and household environment"),
+    ("the household environment", "the indoor and household environment"),
+    ("the residents", "the individual inhabitants of those homes"),
+    ("the occupants", "the individual inhabitants of those homes"),
+    ("the inhabitants", "the individual inhabitants of those homes"),
+    ("the objects", "the objects of interest"),
+    ("the object", "the object of interest"),
+    ("the software", "the software that enables the system to function"),
+    ("the authors", "the authors of the study"),
+    ("indoors", "within the indoor environment"),
+)
+
 
 def _split_words(sentence: str) -> List[str]:
     return sentence.split()
@@ -924,6 +942,8 @@ def humanize_phrasing(sentences: List[str], ctx: Context) -> List[str]:
       a little less precise -- the deliberate Human-version trade);
     * strong, authoritative claims -> a hedged, softer research voice
       ("demonstrates that" -> "suggests that");
+    * concise terms -> the stiffer, more formal "humanizer" phrasing
+      ("the object" -> "the object of interest");
     * a long, specific enumeration -> a shorter, more general phrasing
       (lead items kept; the tail generalised, never fabricated).
 
@@ -959,6 +979,15 @@ def humanize_phrasing(sentences: List[str], ctx: Context) -> List[str]:
                 )
                 changed = True
                 ctx.log("style: softened an over-strong claim")
+
+        for phrase, repl in _PERIPHRASTIC:
+            pat = re.compile(r"\b" + re.escape(phrase) + r"\b", re.IGNORECASE)
+            if pat.search(new) and ctx.chance(0.85):
+                new = pat.sub(
+                    lambda m, r=repl: _match_case(m.group(0), r), new
+                )
+                changed = True
+                ctx.log("style: used a more formal phrasing")
 
         if _ENUM_RE.search(new) and ctx.chance(0.8):
             generalized = _ENUM_RE.sub(

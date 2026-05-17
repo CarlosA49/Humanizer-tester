@@ -139,8 +139,10 @@ via `TONE_PIPELINES`):
 6. `adjust_contractions` — contract / expand to match the tone's register.
 7. `humanize_phrasing` — the "Human-version" style pass: simplifies heavy
    academic wording, softens over-strong claims ("demonstrates that" →
-   "suggests that"), and generalizes long specific enumerations (lead
-   items kept, tail generalized — never fabricated).
+   "suggests that"), swaps concise terms for the stiffer formal
+   "humanizer" phrasing ("the object" → "the object of interest"), and
+   generalizes long specific enumerations (lead items kept, tail
+   generalized — never fabricated).
 8. `reorder_clauses` — flips leading/trailing subordinate clauses.
 9. `soften_passive` — nudges agentless passive toward active.
 10. `vary_sentence_length` — split, merge, fragment → burstiness.
