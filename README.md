@@ -117,8 +117,8 @@ python3 -m humanizer --list-tones
 
 ## Pipeline rules
 
-Twelve independent, swappable rules. The default order (tones may reorder via
-`TONE_PIPELINES`):
+Thirteen independent, swappable rules. The default order (tones may reorder
+via `TONE_PIPELINES`):
 
 1. `strip_ai_tells` — removes giveaways ("it is important to note that",
    "in conclusion", "delve into", …).
@@ -137,12 +137,17 @@ Twelve independent, swappable rules. The default order (tones may reorder via
 5. `lexical_substitution` — tone-aware, variety-preserving paraphrasing of
    single words **and** multi-word phrases.
 6. `adjust_contractions` — contract / expand to match the tone's register.
-7. `reorder_clauses` — flips leading/trailing subordinate clauses.
-8. `soften_passive` — nudges agentless passive toward active.
-9. `vary_sentence_length` — split, merge, fragment → burstiness.
-10. `inject_hedges_intensifiers` — tone-aware hedges/intensifiers.
-11. `vary_openers` — breaks up repeated sentence-opening words.
-12. `inject_discourse_markers` — tone starters & asides → human texture.
+7. `humanize_phrasing` — the "Human-version" style pass: simplifies heavy
+   academic wording, softens over-strong claims ("demonstrates that" →
+   "suggests that"), and generalizes long specific enumerations (lead
+   items kept, tail generalized — never fabricated).
+8. `reorder_clauses` — flips leading/trailing subordinate clauses.
+9. `soften_passive` — nudges agentless passive toward active.
+10. `vary_sentence_length` — split, merge, fragment → burstiness.
+11. `inject_hedges_intensifiers` — tone-aware hedges/intensifiers.
+12. `vary_openers` — breaks up repeated sentence-opening words.
+13. `inject_discourse_markers` — tone starters & asides → human texture
+    (academic adds "Furthermore," / "Moreover," / "Thus," transitions).
 
 A final pass repairs `a`/`an` after substitutions.
 
@@ -210,7 +215,7 @@ humanizer/
   dictionaries.py     large per-tone vocabulary pack (optional, auto-loaded)
   pipeline.py         the rule engine + core rules + per-tone pipelines
   extra_rules.py      reorder / openers / hedges / prune / passive /
-                      ai-red-flag / opening-recast rules
+                      ai-red-flag / opening-recast / human-style rules
   core.py             Humanizer API + before/after metrics
   cli.py              command-line interface
 tests/                unittest suites (test_humanizer, test_extended)

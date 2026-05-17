@@ -348,6 +348,7 @@ DEFAULT_PIPELINE = [
     "prune_redundancy",
     "lexical_substitution",
     "adjust_contractions",
+    "humanize_phrasing",
     "reorder_clauses",
     "soften_passive",
     "vary_sentence_length",
@@ -362,19 +363,21 @@ TONE_PIPELINES: Dict[str, List[str]] = {
     "academic": [
         "strip_ai_tells", "strip_ai_red_flags", "recast_openings",
         "prune_redundancy", "lexical_substitution", "adjust_contractions",
-        "reorder_clauses", "inject_hedges_intensifiers",
+        "humanize_phrasing", "reorder_clauses", "inject_hedges_intensifiers",
         "vary_sentence_length", "vary_openers", "inject_discourse_markers",
     ],
     "confident": [
         "strip_ai_tells", "strip_ai_red_flags", "recast_openings",
         "prune_redundancy", "soften_passive", "lexical_substitution",
-        "adjust_contractions", "inject_hedges_intensifiers",
-        "vary_sentence_length", "vary_openers", "inject_discourse_markers",
+        "adjust_contractions", "humanize_phrasing",
+        "inject_hedges_intensifiers", "vary_sentence_length",
+        "vary_openers", "inject_discourse_markers",
     ],
     "storytelling": [
         "strip_ai_tells", "strip_ai_red_flags", "recast_openings",
-        "lexical_substitution", "adjust_contractions", "reorder_clauses",
-        "vary_sentence_length", "vary_openers", "inject_discourse_markers",
+        "lexical_substitution", "adjust_contractions", "humanize_phrasing",
+        "reorder_clauses", "vary_sentence_length", "vary_openers",
+        "inject_discourse_markers",
     ],
 }
 

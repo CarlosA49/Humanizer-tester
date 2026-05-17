@@ -278,6 +278,79 @@ _RECAST_USE_OF = re.compile(
     r"^\s*the\s+use\s+of\s+(?P<rest>.+)$", re.IGNORECASE
 )
 
+# --------------------------------------------------------------------------- #
+# "Human-version" style tables (consumed by humanize_phrasing)
+# --------------------------------------------------------------------------- #
+# Complex / heavy academic constructions -> plainer wording.  The "Human"
+# rewrite trades a little precision for readability; this is that trade.
+_SIMPLIFY: Tuple[Tuple[str, str], ...] = (
+    ("remains dependent on", "still needs"),
+    ("remain dependent on", "still need"),
+    ("is dependent on", "needs"),
+    ("are dependent on", "need"),
+    ("is contingent upon", "depends on"),
+    ("are contingent upon", "depend on"),
+    ("has the ability to", "can"),
+    ("have the ability to", "can"),
+    ("with respect to", "for"),
+    ("in the context of", "in"),
+    ("a wide range of", "many"),
+    ("a broad range of", "many"),
+    ("a significant number of", "many"),
+    ("the majority of", "most"),
+    ("in addition to", "besides"),
+    ("is affected by", "can be affected by"),
+    ("are affected by", "can be affected by"),
+    ("exhibits", "shows"),
+    ("facilitates", "helps"),
+    ("facilitate", "help"),
+    ("subsequently", "then"),
+    ("approximately", "about"),
+    ("a number of factors", "several things"),
+)
+
+# Strong, authoritative claims -> hedged, "softer" research voice.
+_SOFTEN_CLAIMS: Tuple[Tuple[str, str], ...] = (
+    ("supports the use of", "suggests the potential of using"),
+    ("support the use of", "suggest the potential of using"),
+    ("clearly demonstrates that", "suggests that"),
+    ("clearly demonstrates", "suggests"),
+    ("clearly shows that", "suggests that"),
+    ("demonstrates that", "suggests that"),
+    ("demonstrate that", "suggest that"),
+    ("proves that", "indicates that"),
+    ("prove that", "indicate that"),
+    ("confirms that", "indicates that"),
+    ("strongly suggests", "suggests"),
+    ("shows the need for", "points to a need for"),
+    ("highlights the need for", "points to a need for"),
+    ("underscores the need for", "points to a need for"),
+    ("is essential for", "may help with"),
+    ("is critical for", "may help with"),
+    ("plays a key role in", "may contribute to"),
+    ("these results confirm", "these results suggest"),
+    ("the findings prove", "the findings suggest"),
+    ("will improve", "may improve"),
+    ("will increase", "may increase"),
+    ("will enhance", "may improve"),
+    ("will significantly", "may"),
+)
+
+# A long, specific enumeration (4+ short items) -> a shorter, more general
+# phrasing.  Items are *not* invented away into a fabricated category; the
+# lead items are kept and the tail is generalised honestly.
+_ENUM_RE = re.compile(
+    r"\b((?:[\w'-]+(?:\s+[\w'-]+){0,3}\s*,\s*){3,})"
+    r"(?:and|or)\s+([\w'-]+(?:\s+[\w'-]+){0,3})\b",
+    re.IGNORECASE,
+)
+_ENUM_TEMPLATES = (
+    "{a}, {b}, and others",
+    "{a}, {b}, among others",
+    "{a} and {b}, among other things",
+    "{a}, {b}, and the like",
+)
+
 
 def _split_words(sentence: str) -> List[str]:
     return sentence.split()
@@ -827,6 +900,85 @@ def recast_openings(sentences: List[str], ctx: Context) -> List[str]:
 
 
 # --------------------------------------------------------------------------- #
+# 8. humanize_phrasing
+# --------------------------------------------------------------------------- #
+def _generalize_enum(match: "re.Match", ctx: Context) -> str:
+    """Shorten a long, specific list to its lead items + a generic tail."""
+    items = [
+        it.strip()
+        for it in match.group(1).split(",")
+        if it.strip()
+    ]
+    if len(items) < 2:
+        return match.group(0)
+    tmpl = ctx.rng.choice(_ENUM_TEMPLATES)
+    return tmpl.format(a=items[0], b=items[1])
+
+
+def humanize_phrasing(sentences: List[str], ctx: Context) -> List[str]:
+    """Apply the "Human-version" rewrite style.
+
+    Runs after the tone paraphrase so it has the final say on register:
+
+    * heavy academic constructions -> plainer wording (more readable,
+      a little less precise -- the deliberate Human-version trade);
+    * strong, authoritative claims -> a hedged, softer research voice
+      ("demonstrates that" -> "suggests that");
+    * a long, specific enumeration -> a shorter, more general phrasing
+      (lead items kept; the tail generalised, never fabricated).
+
+    Deterministic given ``ctx.rng``; it draws no randomness unless a
+    pattern actually matches, so untouched text is bit-for-bit unchanged
+    and the rest of the pipeline is unperturbed.
+    """
+    out: List[str] = []
+    for sent in sentences:
+        original = sent
+        new = sent
+        if not new.strip():
+            out.append(new)
+            continue
+
+        term = _terminal_punct(new) or "."
+        changed = False
+
+        for phrase, repl in _SIMPLIFY:
+            pat = re.compile(r"\b" + re.escape(phrase) + r"\b", re.IGNORECASE)
+            if pat.search(new) and ctx.chance(0.85):
+                new = pat.sub(
+                    lambda m, r=repl: _match_case(m.group(0), r), new
+                )
+                changed = True
+                ctx.log("style: simplified academic wording")
+
+        for phrase, repl in _SOFTEN_CLAIMS:
+            pat = re.compile(r"\b" + re.escape(phrase) + r"\b", re.IGNORECASE)
+            if pat.search(new) and ctx.chance(0.85):
+                new = pat.sub(
+                    lambda m, r=repl: _match_case(m.group(0), r), new
+                )
+                changed = True
+                ctx.log("style: softened an over-strong claim")
+
+        if _ENUM_RE.search(new) and ctx.chance(0.8):
+            generalized = _ENUM_RE.sub(
+                lambda m: _generalize_enum(m, ctx), new, count=1
+            )
+            if generalized != new and _has_alpha(generalized):
+                new = generalized
+                changed = True
+                ctx.log("style: generalized a long enumeration")
+
+        if not _has_alpha(new):
+            out.append(original)
+            continue
+        if changed and new != original:
+            new = _ensure_terminal(_capitalize_first(new).rstrip(".!?") + term)
+        out.append(new)
+    return out
+
+
+# --------------------------------------------------------------------------- #
 EXTRA_RULES: Dict[str, Callable[[List[str], Context], List[str]]] = {
     "reorder_clauses": reorder_clauses,
     "vary_openers": vary_openers,
@@ -835,4 +987,5 @@ EXTRA_RULES: Dict[str, Callable[[List[str], Context], List[str]]] = {
     "soften_passive": soften_passive,
     "strip_ai_red_flags": strip_ai_red_flags,
     "recast_openings": recast_openings,
+    "humanize_phrasing": humanize_phrasing,
 }
