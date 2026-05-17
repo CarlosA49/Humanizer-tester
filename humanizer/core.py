@@ -18,6 +18,18 @@ __all__ = ["Humanizer", "HumanizeResult", "list_tones"]
 _AN_EXCEPTIONS = ("hour", "honest", "honour", "honor", "heir")
 _A_EXCEPTIONS = ("uni", "use", "user", "one", "once", "euro", "ufo")
 _ARTICLE_RE = re.compile(r"\b([Aa])(n?)\s+([A-Za-z]+)")
+# Tidy punctuation artifacts the higher substitution rate can leave behind:
+# space-before-punctuation and runs of repeated commas/terminators.
+_SPACE_PUNCT_RE = re.compile(r"\s+([,.;:!?])")
+_DUP_COMMA_RE = re.compile(r",(?:\s*,)+")
+_COMMA_TERM_RE = re.compile(r",\s*([.!?])")
+
+
+def _tidy_punctuation(text: str) -> str:
+    text = _SPACE_PUNCT_RE.sub(r"\1", text)
+    text = _DUP_COMMA_RE.sub(",", text)
+    text = _COMMA_TERM_RE.sub(r"\1", text)
+    return re.sub(r"\s{2,}", " ", text).strip()
 # A run of two or more articles (e.g. "the the", "the a") collapses to the
 # last one — the article the substituted phrase brought with it.
 _DUP_ARTICLE_RE = re.compile(
@@ -135,7 +147,7 @@ class Humanizer:
         sentences = split_sentences(original) or ([original] if original.strip() else [])
         rewritten = self.pipeline.run(sentences, ctx)
         result_text = " ".join(s.strip() for s in rewritten if s.strip())
-        result_text = _fix_articles(result_text)
+        result_text = _tidy_punctuation(_fix_articles(result_text))
 
         return HumanizeResult(
             original=original,

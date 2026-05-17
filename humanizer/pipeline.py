@@ -20,6 +20,7 @@ from dataclasses import dataclass, field
 from random import Random
 from typing import Callable, Dict, List
 
+from .lexicon import word_surprisal
 from .tones import Tone
 
 _TOKEN_RE = re.compile(r"[A-Za-z][A-Za-z'-]*|[^A-Za-z\s]+|\s+")
@@ -49,6 +50,12 @@ _EXPANSIONS = {
 }
 
 _SPLIT_MARKERS = (", and ", ", but ", ", so ", ", which ", "; ", ", yet ")
+# Tried only when no comma-led break exists, so very long run-ons that lack
+# punctuation ("X is good and X is fast and ...") still get carved up.
+_FALLBACK_SPLIT_MARKERS = (
+    " because ", " which means ", " given that ", " and ", " but ",
+    " so that ", " while ", " yet ",
+)
 
 
 @dataclass
@@ -91,6 +98,33 @@ def _capitalize_first(sentence: str) -> str:
     return s
 
 
+def _surprisal_weighted_choice(rng: Random, pool: List[str]) -> str:
+    """Pick from ``pool`` biased toward rarer (higher-surprisal) options.
+
+    Predictable, common substitutes keep perplexity low (machine-like); a
+    deterministic surprisal weighting pulls the choice toward the less common,
+    more "human" options while keeping every option reachable.  Determinism is
+    preserved because only ``rng`` is consulted.
+    """
+    if len(pool) <= 1:
+        return pool[0] if pool else ""
+    weights: List[float] = []
+    for opt in pool:
+        parts = opt.split()
+        # Floor at 1.0 so even very common options stay reachable; raise to a
+        # power to make the rare-word preference meaningful, not marginal.
+        s = word_surprisal(parts[-1].lower()) if parts else 1.0
+        weights.append(max(s, 1.0) ** 1.5)
+    total = sum(weights)
+    r = rng.random() * total
+    upto = 0.0
+    for opt, w in zip(pool, weights):
+        upto += w
+        if r <= upto:
+            return opt
+    return pool[-1]
+
+
 # --------------------------------------------------------------------------- #
 # Rules
 # --------------------------------------------------------------------------- #
@@ -129,10 +163,10 @@ def lexical_substitution(sentences: List[str], ctx: Context) -> List[str]:
             pat = re.compile(r"\b" + re.escape(key) + r"\b", re.IGNORECASE)
 
             def _sub(m, key=key):
-                if not ctx.chance(0.5):
+                if not ctx.chance(0.62):
                     return m.group(0)
                 pool = [w for w in syn[key] if w not in used.get(key, set())] or syn[key]
-                choice = ctx.rng.choice(pool)
+                choice = _surprisal_weighted_choice(ctx.rng, pool)
                 used.setdefault(key, set()).add(choice)
                 ctx.log(f"lexical: {m.group(0)!r} -> {choice!r}")
                 return _match_case(m.group(0), choice)
@@ -143,9 +177,9 @@ def lexical_substitution(sentences: List[str], ctx: Context) -> List[str]:
         tokens = _TOKEN_RE.findall(text)
         for i, tok in enumerate(tokens):
             low = tok.lower()
-            if low in syn and ctx.chance(0.55):
+            if low in syn and ctx.chance(0.68):
                 pool = [w for w in syn[low] if w not in used.get(low, set())] or syn[low]
-                choice = ctx.rng.choice(pool)
+                choice = _surprisal_weighted_choice(ctx.rng, pool)
                 used.setdefault(low, set()).add(choice)
                 tokens[i] = _match_case(tok, choice)
                 ctx.log(f"lexical: {tok!r} -> {choice!r}")
@@ -171,6 +205,47 @@ def adjust_contractions(sentences: List[str], ctx: Context) -> List[str]:
     return out
 
 
+def _split_once(sent: str, ctx: Context, lo_frac: float = 3.0):
+    """Split ``sent`` at the earliest connector past ``len/lo_frac``.
+
+    Comma-led breaks are preferred; bare conjunctions are a fallback so long
+    run-ons without punctuation still break (which keeps the maximum sentence
+    length down and stops the length spread from overshooting the human
+    target).  Returns ``(first, rest)`` or ``None`` when no usable break
+    exists.
+    """
+    low = sent.lower()
+
+    def _earliest(markers, start):
+        best = -1
+        chosen = ""
+        for marker in markers:
+            pos = low.find(marker, start)
+            if pos != -1 and (best == -1 or pos < best):
+                best = pos
+                chosen = marker
+        return best, chosen
+
+    # Prefer a break past ~1/3 (keeps the first piece from being trivially
+    # short).  If nothing is there, retry from a small floor so a genuine
+    # run-on still breaks instead of surviving whole and skewing the spread.
+    start = int(len(sent) / lo_frac)
+    floor = max(8, len(sent) // 9)
+
+    best, chosen = _earliest(_SPLIT_MARKERS, start)
+    if best == -1:
+        best, chosen = _earliest(_FALLBACK_SPLIT_MARKERS, start)
+    if best == -1:
+        best, chosen = _earliest(_SPLIT_MARKERS, floor)
+    if best == -1:
+        best, chosen = _earliest(_FALLBACK_SPLIT_MARKERS, floor)
+    if best == -1:
+        return None
+    first = _ensure_terminal(sent[:best])
+    rest = _capitalize_first(_ensure_terminal(sent[best + len(chosen) :].strip()))
+    return first, rest
+
+
 def vary_sentence_length(sentences: List[str], ctx: Context) -> List[str]:
     out: List[str] = []
     i = 0
@@ -178,30 +253,36 @@ def vary_sentence_length(sentences: List[str], ctx: Context) -> List[str]:
         sent = sentences[i].strip()
         words = sent.split()
 
-        # Split long, run-on sentences -> raises burstiness.
-        if len(words) >= 22:
-            low = sent.lower()
-            best = -1
-            for marker in _SPLIT_MARKERS:
-                pos = low.find(marker, len(sent) // 3)
-                if pos != -1 and (best == -1 or pos < best):
-                    best = pos
-                    chosen = marker
-            if best != -1 and ctx.chance(0.85):
-                first = _ensure_terminal(sent[:best])
-                rest = sent[best + len(chosen) :].strip()
-                second = _capitalize_first(_ensure_terminal(rest))
+        # Split long, run-on sentences -> raises burstiness.  A lower gate and
+        # repeated passes carve sharp long/short contrasts while keeping the
+        # maximum length bounded, so the spread lands near the human target
+        # instead of blowing past it.
+        if len(words) >= 19:
+            split = _split_once(sent, ctx)
+            if split and ctx.chance(0.88):
+                first, rest = split
                 ctx.log("burstiness: split a long sentence")
                 out.append(first)
-                out.append(second)
+                # One extra pass, and only on a still-very-long tail, so a
+                # genuine long sentence survives in the mix (it is the high
+                # end of the spread that lifts the length CV toward the human
+                # target -- carving everything flat would lower it).
+                if len(rest.split()) >= 24:
+                    nxt = _split_once(rest, ctx)
+                    if nxt and ctx.chance(0.6):
+                        mid, rest = nxt
+                        ctx.log("burstiness: split a long sentence")
+                        out.append(mid)
+                out.append(rest)
                 i += 1
                 continue
 
-        # Merge a very short sentence with the next one.
+        # Merge a very short sentence with the next one.  Kept deliberately
+        # infrequent so short lines mostly survive (they widen the spread).
         if (
             len(words) <= 5
             and i + 1 < len(sentences)
-            and ctx.chance(0.5)
+            and ctx.chance(0.32)
         ):
             conn = ctx.rng.choice(ctx.tone.connectors)
             nxt = sentences[i + 1].strip()
@@ -213,8 +294,10 @@ def vary_sentence_length(sentences: List[str], ctx: Context) -> List[str]:
 
         out.append(_ensure_terminal(sent))
 
-        # Occasionally drop a punchy fragment after a long sentence.
-        if len(words) >= 16 and ctx.chance(0.3):
+        # Drop a punchy stand-alone fragment after a longer sentence.  Kept
+        # moderate so short lines contrast with long ones without flooding the
+        # text and pushing the length CV past the human target.
+        if len(words) >= 14 and ctx.chance(0.45):
             frag = ctx.rng.choice(ctx.tone.fragments)
             ctx.log("burstiness: added a short fragment")
             out.append(frag)
@@ -224,7 +307,7 @@ def vary_sentence_length(sentences: List[str], ctx: Context) -> List[str]:
 
 def inject_discourse_markers(sentences: List[str], ctx: Context) -> List[str]:
     out = []
-    budget = max(1, int(len(sentences) * (0.25 + 0.4 * ctx.strength)))
+    budget = max(1, int(len(sentences) * (0.35 + 0.5 * ctx.strength)))
     for idx, sent in enumerate(sentences):
         new = sent
         already = any(new.startswith(s) for s in ctx.tone.starters)
