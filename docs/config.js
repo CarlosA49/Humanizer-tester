@@ -16,6 +16,13 @@ window.HUMANIZER_CONFIG = {
   OWNER_SHA256:
     "3a876015b446d7cee4b04f844bbbc6561fb5df33e633f9b894f022d1e0572fec",
 
+  // SHA-256 of the developer "no limit" password. Hidden feature: visit the
+  // site with #dev in the URL (or use the Owner tools panel) and enter this
+  // password to turn off the word/token limit on that device only.
+  // Plaintext is never stored. Same client-side trust model as OWNER_SHA256.
+  DEV_SHA256:
+    "7d8c9fec9158f91c59cf65881d4e266e424468bd91154450d9a4e445069dbe67",
+
   // Coupon signing secret. Used to sign codes in the owner generator and
   // (when accounts are on) verified server-side. The SAME value must be set
   // as `coupon_secret` in private_config in Supabase (see supabase/schema.sql).
