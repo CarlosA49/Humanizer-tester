@@ -38,9 +38,9 @@ generator** (footer → "Owner tools"), and an embedded **feedback form**.
 | Plan | Launch price | Words | Devices |
 |---|---|---|---|
 | Starter /mo | ₱499 | 10,000 / mo | 1 |
-| Pro /mo ★ | ₱799 | 60,000 / mo | 2 |
-| Pro Semi‑Annual (6 mo) | ₱3,990 | 60,000 / mo | 2 |
-| Pro Annual | ₱6,990 | 60,000 / mo | 3 |
+| Pro /mo ★ | ₱799 | 30,000 / mo | 2 |
+| Pro Semi‑Annual (6 mo) | ₱3,990 | 30,000 / mo | 2 |
+| Pro Annual | ₱6,990 | 30,000 / mo | 3 |
 | Unlimited /mo | ₱5,000 | Unlimited (fair use) | 5 |
 | **Lifetime** (code‑only) | not listed | Pro forever | 3 |
 
