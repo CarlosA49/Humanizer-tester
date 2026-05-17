@@ -16,10 +16,20 @@ window.HUMANIZER_CONFIG = {
   OWNER_SHA256:
     "3a876015b446d7cee4b04f844bbbc6561fb5df33e633f9b894f022d1e0572fec",
 
-  // Coupon signing secret. MVP-only: visible in client code, so coupons are
-  // forgeable by a determined user until the backend validates them.
-  // Changing this invalidates previously issued codes.
+  // Coupon signing secret. Used to sign codes in the owner generator and
+  // (when accounts are on) verified server-side. The SAME value must be set
+  // as `coupon_secret` in private_config in Supabase (see supabase/schema.sql).
   COUPON_SECRET: "hmz-launch-v1-mvp-rotate-with-backend",
+
+  // Free user accounts (Supabase). Leave blank to keep the localStorage-only
+  // MVP. To enable: create a free project at https://supabase.com, run
+  // supabase/schema.sql in its SQL editor, enable Email auth, then paste:
+  //   Project URL  -> SUPABASE_URL
+  //   anon public key (safe to ship; protected by row-level security)
+  //                  -> SUPABASE_ANON_KEY
+  SUPABASE_URL: "", // TODO(owner): https://xxxx.supabase.co
+  SUPABASE_ANON_KEY: "", // TODO(owner): anon public key
+
 
   // Where customer feedback goes. Get a free endpoint at https://formspree.io
   // (create a form, paste its endpoint like https://formspree.io/f/abcdwxyz).

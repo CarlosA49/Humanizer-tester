@@ -69,10 +69,13 @@ footer a{color:var(--accent);text-decoration:none}
 
 /* ---- trial / pricing / coupons / feedback ---- */
 .trialbar{
-  display:flex;align-items:center;justify-content:space-between;gap:12px;
-  background:var(--panel);border:1px solid var(--line);border-radius:10px;
-  padding:10px 14px;margin-bottom:16px;font-size:14px;color:var(--muted)
+  display:flex;align-items:center;justify-content:space-between;gap:10px;
+  flex-wrap:wrap;background:var(--panel);border:1px solid var(--line);
+  border-radius:10px;padding:10px 14px;margin-bottom:16px;font-size:14px;
+  color:var(--muted)
 }
+.trialbar .who{font-weight:600;color:var(--text);margin-right:auto}
+.trialbar .bad{color:var(--bad)}
 .trialbar strong{color:var(--text)}
 .trialbar .ok{color:var(--accent2)}
 .section{margin:34px 0}
@@ -143,4 +146,10 @@ button.ghost{background:var(--panel2);color:var(--text);border:1px solid var(--l
 .star{background:none;border:none;font-size:26px;color:var(--line);cursor:pointer;padding:0}
 .star.on{color:#f5b301}
 footer .dot{color:var(--line);margin:0 8px}
-footer #ownerLink{color:var(--muted)}
+footer #ownerLink,footer #accountLink{color:var(--muted)}
+#authBody h3{margin-top:0}
+#authBody input{display:block;width:100%;margin:8px 0;background:var(--panel2);
+  color:var(--text);border:1px solid var(--line);border-radius:8px;
+  padding:10px;font:inherit}
+.authrow{display:flex;justify-content:space-between;gap:8px;margin:10px 0;
+  flex-wrap:wrap}

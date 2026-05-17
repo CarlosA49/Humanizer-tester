@@ -75,6 +75,8 @@
 </main>
 
 <footer>
+  <a id="accountLink" href="#" rel="noopener">Account</a>
+  <span class="dot">·</span>
   <a id="repoLink" href="#" rel="noopener">Source on GitHub</a>
   <span class="dot">·</span>
   <a id="ownerLink" href="#" rel="noopener">Owner tools</a>
@@ -102,13 +104,21 @@
   </div>
 </div>
 
+<div id="authModal" class="modal">
+  <div class="sheet"><button class="xclose" aria-label="Close">×</button>
+    <div id="authBody"></div>
+  </div>
+</div>
+
 <div id="boot" class="boot">
   <div class="spinner"></div>
   <p id="bootMsg">Starting Python in your browser…</p>
 </div>
 
 <script src="https://cdn.jsdelivr.net/pyodide/v0.26.4/full/pyodide.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="./config.js"></script>
+<script src="./auth.js"></script>
 <script src="./billing.js"></script>
 <script src="./app.js"></script>
 </body>

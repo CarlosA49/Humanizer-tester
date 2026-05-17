@@ -21,11 +21,23 @@
     return Array.from(new Uint8Array(b))
       .map(function (x) { return x.toString(16).padStart(2, "0"); }).join("");
   }
-  function getUsed() { return parseInt(localStorage.getItem(LS_USED) || "0", 10) || 0; }
+  // Account is the source of truth when signed in; localStorage otherwise.
+  function acct() {
+    var A = window.Account;
+    return A && A.ready && A.signedIn() ? A : null;
+  }
+  function prof() { var A = acct(); return A ? A.profile() : null; }
+  function getUsed() {
+    var p = prof();
+    if (p) return p.trial_words | 0;
+    return parseInt(localStorage.getItem(LS_USED) || "0", 10) || 0;
+  }
   function setUsed(n) { localStorage.setItem(LS_USED, String(n)); }
 
   // ---- trial -------------------------------------------------------------
   function unlocked() {
+    var p = prof();
+    if (p) return !!p.unlocked;
     try { return !!JSON.parse(localStorage.getItem(LS_UNLOCK) || "null"); }
     catch (e) { return false; }
   }
@@ -33,31 +45,62 @@
   function allow() { return unlocked() || getUsed() < CFG.TRIAL_WORDS; }
   function consume(words) {
     if (unlocked()) return;
+    var A = acct();
+    if (A) { A.consumeWords(words).then(refreshBanner); return; }
     setUsed(getUsed() + Math.max(0, words | 0));
     refreshBanner();
   }
+  var deviceLimitHit = false;
   function refreshBanner() {
     var b = el("trialBanner");
     if (!b) return;
-    if (unlocked()) {
-      var u = {};
-      try { u = JSON.parse(localStorage.getItem(LS_UNLOCK) || "{}"); } catch (e) {}
-      var m = planMeta(u.plan || "");
-      b.innerHTML =
-        '<span class="ok">✓ ' + m.name +
-        " unlocked on this device — thank you!</span>" +
+    var A = acct(), authReady = window.Account && window.Account.ready;
+    var who = A ? '<span class="who">' + window.Account.email() + "</span>" : "";
+    var authBtn = !authReady ? ""
+      : A ? '<button id="acctOut" class="link">Sign out</button>'
+          : '<button id="acctBtn" class="link">Sign in / Create account</button>';
+
+    if (deviceLimitHit) {
+      var pm = planMeta((prof() && prof().plan) || "");
+      b.innerHTML = who +
+        '<span class="bad">Device limit reached (' + pm.devices +
+        " for " + pm.name + "). </span>" +
+        '<button id="useHere" class="link">Use this device (sign out others)</button>' +
+        authBtn;
+    } else if (unlocked()) {
+      var m;
+      if (A) { m = planMeta((prof() && prof().plan) || ""); }
+      else {
+        var u = {};
+        try { u = JSON.parse(localStorage.getItem(LS_UNLOCK) || "{}"); } catch (e) {}
+        m = planMeta(u.plan || "");
+      }
+      b.innerHTML = who +
+        '<span class="ok">✓ ' + m.name + (A ? " — synced" : " unlocked") +
+        "</span>" +
         '<span class="muted">Up to ' + m.devices + " device" +
         (m.devices > 1 ? "s" : "") +
-        " · multi-device sync activates with accounts</span>";
-      return;
+        (A ? " · follows your account" : " · sign in to sync") + "</span>" +
+        authBtn;
+    } else {
+      var r = remaining();
+      b.innerHTML = who +
+        '<span>Free trial: <strong>' + r + " / " + CFG.TRIAL_WORDS +
+        " words</strong> left" + (A ? " · synced" : "") + "</span>" +
+        '<button id="seePlans" class="link">See plans</button>' + authBtn;
     }
-    var r = remaining();
-    b.innerHTML =
-      '<span>Free trial: <strong>' + r + " / " + CFG.TRIAL_WORDS +
-      ' words</strong> left</span>' +
-      '<button id="seePlans" class="link">See plans</button>';
     var sp = el("seePlans");
-    if (sp) sp.onclick = function () { scrollToPricing(); };
+    if (sp) sp.onclick = scrollToPricing;
+    var ab = el("acctBtn");
+    if (ab) ab.onclick = openAuth;
+    var ao = el("acctOut");
+    if (ao) ao.onclick = function () { window.Account.signOut(); };
+    var uh = el("useHere");
+    if (uh) uh.onclick = function () {
+      window.Account.forgetOthers(deviceId()).then(function () {
+        deviceLimitHit = false; onAccount();
+      });
+    };
   }
   function scrollToPricing() {
     var p = el("pricing");
@@ -127,6 +170,25 @@
   }
 
   async function applyCoupon(raw, contextPlanId) {
+    var A = acct();
+    if (A) {
+      var sr = await A.redeemCoupon(raw);
+      if (!sr || !sr.ok) return { ok: false, msg: (sr && sr.msg) || "Invalid code." };
+      if (sr.free) {
+        deviceLimitHit = false;
+        await onAccount();
+        var fm0 = planMeta(sr.plan);
+        return { ok: true, free: true,
+          msg: fm0.name + " unlocked on your account — synced across up to " +
+            fm0.devices + " device" + (fm0.devices > 1 ? "s" : "") + "." };
+      }
+      appliedDiscount = { plan: sr.plan, kind: sr.kind, value: sr.value };
+      renderPricing();
+      if (contextPlanId) renderCheckout(contextPlanId);
+      var l0 = sr.kind === "PCT" ? sr.value + "% off" : peso(sr.value) + " off";
+      return { ok: true, free: false,
+        msg: "Coupon applied: " + l0 + " (" + sr.plan + ")." };
+    }
     var r = await validateCode(raw);
     if (!r.ok) return r;
     if (r.kind === "FREE") {
@@ -368,6 +430,121 @@
     };
   }
 
+  // ---- accounts (UI) -----------------------------------------------------
+  async function onAccount() {
+    if (!acct()) { deviceLimitHit = false; refreshBanner(); renderAuth(); return; }
+    var cap = unlocked()
+      ? planMeta((prof() && prof().plan) || "").devices : 1;
+    var res = await window.Account.registerDevice(deviceId(), cap);
+    deviceLimitHit = !!(res && res.limit);
+    refreshBanner();
+    renderAuth();
+  }
+  function authState() {
+    if (!window.Account || !window.Account.ready) return "off";
+    return window.Account.signedIn() ? "in" : "out";
+  }
+  function renderAuth() {
+    var body = el("authBody");
+    if (!body) return;
+    var st = authState();
+    if (st === "off") {
+      body.innerHTML = "<h3>Accounts</h3><p class=\"muted\">User accounts " +
+        "aren't configured yet. Owner: create a free Supabase project, run " +
+        "<code>supabase/schema.sql</code>, then add the keys to " +
+        "<code>docs/config.js</code>.</p>";
+      return;
+    }
+    if (st === "in") {
+      var p = prof() || {}, m = planMeta(p.plan || "");
+      var nDev = (p.devices && p.devices.length) || 0;
+      body.innerHTML =
+        "<h3>Your account</h3>" +
+        "<p><strong>" + window.Account.email() + "</strong></p>" +
+        '<p class="muted">' +
+          (p.unlocked ? m.name + " — full access" :
+            "Free trial — " + Math.max(0, CFG.TRIAL_WORDS - (p.trial_words | 0)) +
+            " / " + CFG.TRIAL_WORDS + " words left") +
+          "<br>Devices: " + nDev + " / " + m.devices +
+          " (synced across your devices)</p>" +
+        (deviceLimitHit
+          ? '<p class="bad">This device is over your plan limit.</p>'
+            + '<button id="aForget" class="ghost">Use only this device</button>'
+          : "") +
+        '<button id="aOut" class="primary">Sign out</button>';
+      var ao = el("aOut");
+      if (ao) ao.onclick = function () {
+        window.Account.signOut().then(function () {
+          el("authModal").style.display = "none";
+        });
+      };
+      var af = el("aForget");
+      if (af) af.onclick = function () {
+        window.Account.forgetOthers(deviceId()).then(function () {
+          deviceLimitHit = false; onAccount();
+        });
+      };
+      return;
+    }
+    body.innerHTML =
+      '<h3 id="authTitle">Create your account</h3>' +
+      '<p class="muted">Free. Your plan, trial and devices follow your ' +
+      "account across browsers and phones.</p>" +
+      '<input id="authEmail" type="email" placeholder="Email" autocomplete="email" />' +
+      '<input id="authPw" type="password" placeholder="Password (min 6 chars)" autocomplete="current-password" />' +
+      '<button id="authGo" class="primary">Create account</button>' +
+      '<div class="authrow">' +
+        '<button id="authToggle" class="link">Have an account? Sign in</button>' +
+        '<button id="authForgot" class="link">Forgot password</button>' +
+      "</div>" +
+      '<span id="authMsg" class="cmsg"></span>';
+    var mode = "signup";
+    el("authToggle").onclick = function () {
+      mode = mode === "signup" ? "signin" : "signup";
+      el("authTitle").textContent =
+        mode === "signup" ? "Create your account" : "Sign in";
+      el("authGo").textContent =
+        mode === "signup" ? "Create account" : "Sign in";
+      el("authToggle").textContent =
+        mode === "signup" ? "Have an account? Sign in" : "New here? Create account";
+    };
+    el("authGo").onclick = function () {
+      var em = el("authEmail").value.trim(), pw = el("authPw").value;
+      var msg = el("authMsg");
+      if (!em || pw.length < 6) {
+        msg.textContent = "Enter an email and a 6+ character password.";
+        msg.className = "cmsg bad"; return;
+      }
+      msg.textContent = "Please wait…"; msg.className = "cmsg";
+      var op = mode === "signup"
+        ? window.Account.signUp(em, pw) : window.Account.signIn(em, pw);
+      op.then(function () {
+        msg.className = "cmsg good";
+        msg.textContent = mode === "signup"
+          ? "Account created. If email confirmation is on, check your inbox."
+          : "Signed in.";
+      }).catch(function (e) {
+        msg.className = "cmsg bad";
+        msg.textContent = (e && e.message) || "Could not complete that.";
+      });
+    };
+    el("authForgot").onclick = function () {
+      var em = el("authEmail").value.trim(), msg = el("authMsg");
+      if (!em) { msg.textContent = "Enter your email first."; msg.className = "cmsg bad"; return; }
+      window.Account.resetPassword(em).then(function () {
+        msg.className = "cmsg good";
+        msg.textContent = "If that email exists, a reset link was sent.";
+      }).catch(function () {
+        msg.className = "cmsg bad"; msg.textContent = "Could not send reset email.";
+      });
+    };
+  }
+  function openAuth() {
+    renderAuth();
+    var m = el("authModal");
+    if (m) m.style.display = "flex";
+  }
+
   // ---- init --------------------------------------------------------------
   function closeOnClick(modalId) {
     var m = el(modalId);
@@ -381,13 +558,19 @@
     renderPricing();
     wireFeedback();
     refreshBanner();
-    ["paywallModal", "checkoutModal", "ownerModal"].forEach(closeOnClick);
+    renderAuth();
+    ["paywallModal", "checkoutModal", "ownerModal", "authModal"]
+      .forEach(closeOnClick);
     var ow = el("ownerLink");
     if (ow) ow.onclick = function (e) { e.preventDefault(); openOwner(); };
+    var ac = el("accountLink");
+    if (ac) ac.onclick = function (e) { e.preventDefault(); openAuth(); };
     var pwBtn = el("paywallPlans");
     if (pwBtn) pwBtn.onclick = function () {
       el("paywallModal").style.display = "none"; scrollToPricing();
     };
+    if (window.Account && window.Account.onChange)
+      window.Account.onChange(onAccount);
   }
   if (document.readyState === "loading")
     document.addEventListener("DOMContentLoaded", init);

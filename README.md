@@ -49,9 +49,10 @@ generator** (footer → "Owner tools"), and an embedded **feedback form**.
 Device limits are shown to users now and **enforced server‑side in the
 backend phase** (client‑side device binding alone is bypassable).
 
-> ⚠️ This is a client‑side MVP: trial limits, coupons and the owner gate are
-> tamper‑resistant but **not tamper‑proof**. Real payment capture and
-> enforcement come in the **backend phase**.
+> ⚠️ Without accounts this is a client‑side MVP (bypassable). **Enable the
+> free Supabase backend below** and trial counting, coupon redemption and
+> device limits become server‑enforced and tamper‑resistant. Payment capture
+> stays manual (PayMongo/PayPal proof → manual activation) for now.
 
 **Owner setup — edit [`docs/config.js`](docs/config.js):**
 - `FEEDBACK_FORM_ENDPOINT` — paste a free [Formspree](https://formspree.io)
@@ -63,6 +64,30 @@ backend phase** (client‑side device binding alone is bypassable).
   `docs/payments/paypal-qr.png` (international).
 - Prices/word limits/anchors live in `PLANS` — tweak freely.
 - The owner password is stored only as a SHA‑256 hash (never plaintext).
+
+### Free accounts (Supabase) — optional, recommended
+
+Adds real signup/login with **email + password** and a per‑user profile
+that **syncs plan, trial words and devices across browsers/phones**. Trial
+counting, coupon redemption and device limits run as server‑side
+`SECURITY DEFINER` functions, so a signed‑in user **cannot tamper** with
+their own word count, unlock flag or device list. Free tier, no server to run.
+
+1. Create a free project at <https://supabase.com>.
+2. Open **SQL editor → New query**, paste
+   [`supabase/schema.sql`](supabase/schema.sql), and **Run**.
+3. **Authentication → Providers → Email** = enabled. (For instant signup in
+   testing you may disable “Confirm email”; keep it on for production.)
+4. **Project Settings → API**: copy the **Project URL** and the **anon
+   public** key into `SUPABASE_URL` / `SUPABASE_ANON_KEY` in
+   [`docs/config.js`](docs/config.js).
+5. Make sure `COUPON_SECRET` in `docs/config.js` **matches** the
+   `coupon_secret` value seeded by `schema.sql` (edit the SQL before running
+   if you change it).
+
+The anon key is safe to ship publicly — row‑level security restricts each
+user to their own row, and all writes go through the server functions.
+Leave the keys blank and the app keeps working as the localStorage‑only MVP.
 
 ## What it does
 
