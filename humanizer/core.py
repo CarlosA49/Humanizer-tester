@@ -23,12 +23,19 @@ _ARTICLE_RE = re.compile(r"\b([Aa])(n?)\s+([A-Za-z]+)")
 _SPACE_PUNCT_RE = re.compile(r"\s+([,.;:!?])")
 _DUP_COMMA_RE = re.compile(r",(?:\s*,)+")
 _COMMA_TERM_RE = re.compile(r",\s*([.!?])")
+# Em-dash overuse is a top AI tell, and some tone starters/asides carry one
+# ("Bottom line —", "Spoiler alert —").  This is the final, system-wide
+# guarantee that no em-dash, double-hyphen or space-padded hyphen-as-dash
+# survives in any output; a bare hyphen ("10-20") is left untouched.
+_AI_DASH_RE = re.compile(r"\s*(?:—|--)\s*|\s+-\s+")
 
 
 def _tidy_punctuation(text: str) -> str:
+    text = _AI_DASH_RE.sub(", ", text)
     text = _SPACE_PUNCT_RE.sub(r"\1", text)
     text = _DUP_COMMA_RE.sub(",", text)
     text = _COMMA_TERM_RE.sub(r"\1", text)
+    text = re.sub(r"^\s*,\s*", "", text)
     return re.sub(r"\s{2,}", " ", text).strip()
 # A run of two or more articles (e.g. "the the", "the a") collapses to the
 # last one — the article the substituted phrase brought with it.

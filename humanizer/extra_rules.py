@@ -11,7 +11,7 @@ punctuation by leaning on the shared helpers.
 from __future__ import annotations
 
 import re
-from typing import Callable, Dict, List
+from typing import Callable, Dict, List, Tuple
 
 from .pipeline import Context, _capitalize_first, _ensure_terminal, _match_case
 
@@ -37,6 +37,161 @@ _REDUNDANCY = (
 )
 
 _DOUBLE_INTENSIFIERS = ("very", "really", "quite", "so", "just", "actually")
+
+# --------------------------------------------------------------------------- #
+# AI "red flag" tables (consumed by strip_ai_red_flags)
+# --------------------------------------------------------------------------- #
+# Em-dash overuse: the em-dash, the double-hyphen and a space-padded hyphen
+# used as a dash.  The bare en-dash is intentionally left alone so numeric
+# ranges (e.g. "10-20" written as "10–20") survive untouched.
+_DASH_RE = re.compile(r"\s*(?:—|--)\s*|\s+-\s+")
+
+# Vague / corporate buzzwords -> plainer, varied wording.  Word-boundary
+# matched and case-preserving so only whole words are touched.
+_BUZZWORDS: Dict[str, Tuple[str, ...]] = {
+    "elevate": ("lift", "improve", "raise"),
+    "elevates": ("improves", "lifts", "raises"),
+    "elevating": ("improving", "lifting"),
+    "elevated": ("improved", "lifted", "raised"),
+    "delve": ("dig", "look", "get"),
+    "delves": ("digs", "looks"),
+    "delving": ("digging", "looking"),
+    "innovative": ("new", "fresh", "original", "inventive"),
+    "innovation": ("new idea", "breakthrough", "fresh thinking"),
+    "cutting-edge": ("modern", "advanced", "new"),
+    "state-of-the-art": ("modern", "top", "leading"),
+    "game-changer": ("big deal", "turning point", "real shift"),
+    "game-changing": ("major", "big", "decisive"),
+    "groundbreaking": ("new", "first-of-its-kind", "original"),
+    "robust": ("strong", "solid", "reliable", "sturdy"),
+    "seamless": ("smooth", "easy", "clean"),
+    "seamlessly": ("smoothly", "easily", "cleanly"),
+    "synergy": ("teamwork", "good fit", "overlap"),
+    "synergies": ("overlaps", "shared wins"),
+    "leverage": ("use", "tap", "draw on"),
+    "leverages": ("uses", "taps", "draws on"),
+    "leveraging": ("using", "tapping"),
+    "leveraged": ("used", "tapped"),
+    "harness": ("use", "tap", "put to work"),
+    "harnesses": ("uses", "taps"),
+    "harnessing": ("using", "tapping"),
+    "unlock": ("open up", "enable", "reveal"),
+    "unlocks": ("opens up", "enables"),
+    "unlocking": ("opening up", "enabling"),
+    "empower": ("enable", "equip", "let"),
+    "empowers": ("lets", "enables", "equips"),
+    "empowering": ("enabling", "equipping"),
+    "foster": ("build", "encourage", "grow"),
+    "fosters": ("builds", "encourages"),
+    "fostering": ("building", "encouraging"),
+    "showcase": ("show", "highlight", "present"),
+    "showcases": ("shows", "highlights"),
+    "showcasing": ("showing", "highlighting"),
+    "underscore": ("highlight", "stress", "point up"),
+    "underscores": ("highlights", "stresses"),
+    "underscoring": ("highlighting", "stressing"),
+    "pivotal": ("key", "central", "crucial"),
+    "holistic": ("whole", "overall", "all-round"),
+    "streamline": ("simplify", "tidy up", "smooth out"),
+    "streamlines": ("simplifies", "tidies up"),
+    "streamlined": ("simplified", "tidied", "leaner"),
+    "spearhead": ("lead", "head", "drive"),
+    "spearheaded": ("led", "headed", "drove"),
+    "practical": ("useful", "hands-on", "real-world", "down-to-earth"),
+    "myriad": ("many", "countless", "a lot of"),
+    "plethora": ("plenty", "a lot", "no shortage"),
+    "paramount": ("vital", "key", "top"),
+}
+_BUZZWORD_RE = re.compile(
+    r"\b(?:"
+    + "|".join(re.escape(w) for w in sorted(_BUZZWORDS, key=len, reverse=True))
+    + r")\b",
+    re.IGNORECASE,
+)
+
+# Redundant "filler" preamble that only restates the point -> dropped when it
+# leads a sentence.
+_PREAMBLES = (
+    "in other words", "to put it simply", "simply put", "put simply",
+    "that is to say", "in essence", "at its core", "to clarify",
+    "to reiterate", "as previously mentioned", "as previously stated",
+    "as mentioned earlier", "as noted earlier", "needless to say",
+    "it goes without saying that", "what this means is that",
+    "the bottom line is that", "when all is said and done",
+)
+_PREAMBLE_RE = re.compile(
+    r"^\s*(?:" + "|".join(re.escape(p) for p in _PREAMBLES) + r")\b[\s,:.—-]*",
+    re.IGNORECASE,
+)
+
+# Exaggerated / impersonal praise and assistant-style flattery -> softened or
+# removed (an empty target deletes the phrase).
+_PRAISE: Tuple[Tuple[str, str], ...] = (
+    ("that's a great question", ""),
+    ("what a great question", ""),
+    ("great question", ""),
+    ("excellent question", ""),
+    ("fantastic question", ""),
+    ("that's a great point", ""),
+    ("great point", ""),
+    ("excellent point", ""),
+    ("i would be happy to", "i'll"),
+    ("i'd be happy to", "i'll"),
+    ("i'm glad you asked", ""),
+    ("i hope this helps", ""),
+    ("hope this helps", ""),
+    ("happy to help", ""),
+    ("stands as a testament to", "shows"),
+    ("is a testament to", "shows"),
+    ("a testament to", "a sign of"),
+    ("truly remarkable", "notable"),
+    ("truly transformative", "significant"),
+    ("incredibly powerful", "effective"),
+    ("absolutely essential", "essential"),
+    ("highly commendable", "solid"),
+)
+
+# Forced / clichéd analogies -> plain phrasing.
+_ANALOGIES: Tuple[Tuple[str, str], ...] = (
+    ("like a well-oiled machine", "smoothly"),
+    ("a well-oiled machine", "a smooth operation"),
+    ("a double-edged sword", "a trade-off"),
+    ("the tip of the iceberg", "just the start"),
+    ("tip of the iceberg", "just the start"),
+    ("a perfect storm of", "a pile-up of"),
+    ("think of it like", "consider"),
+    ("think of it as", "consider it"),
+    ("much like", "like"),
+    ("akin to", "like"),
+)
+
+# "Not only/just X but (also) Y" -> "X and Y" (kills the parallel scaffold
+# while keeping both halves).
+_PARALLEL_CONJ_RE = re.compile(
+    r"\bnot\s+(?:only|just)\s+([^,.;:!?]+?)\s*,?\s+but(?:\s+also)?\s+"
+    r"([^,.;:!?]+)",
+    re.IGNORECASE,
+)
+# "It's not just X, it's Y." -> keep the affirmative half ("It's Y.").
+_PARALLEL_ECHO_RE = re.compile(
+    r"^\s*(it'?s|it is|this is|that is|that'?s|this'?s)\s+not\s+just\s+"
+    r"[^,.;:!?]+,\s*(it'?s|it is|this is|that is|that'?s|this'?s)\s+"
+    r"([^.;:!?]+)([.;:!?]?)\s*$",
+    re.IGNORECASE,
+)
+
+# A textbook "rule of three" list of short items -> rebalanced so the
+# three-beat cadence is broken without dropping any item.
+_TRIAD_RE = re.compile(
+    r"\b([A-Za-z][\w'-]*(?:\s[\w'-]+){0,2}),\s+"
+    r"([A-Za-z][\w'-]*(?:\s[\w'-]+){0,2}),?\s+and\s+"
+    r"([A-Za-z][\w'-]*(?:\s[\w'-]+){0,2})\b"
+)
+_TRIAD_TEMPLATES = (
+    "{a} and {b}, along with {c}",
+    "{a}, plus {b} and {c}",
+    "{a} and {b} (and {c})",
+)
 
 
 def _split_words(sentence: str) -> List[str]:
@@ -364,10 +519,137 @@ def soften_passive(sentences: List[str], ctx: Context) -> List[str]:
 
 
 # --------------------------------------------------------------------------- #
+# 6. strip_ai_red_flags
+# --------------------------------------------------------------------------- #
+def _has_alpha(text: str) -> bool:
+    return any(ch.isalpha() for ch in text)
+
+
+def _tidy(text: str) -> str:
+    """Repair punctuation/spacing artifacts left by the scrubbing passes."""
+    text = re.sub(r"\s*,(?:\s*,)+", ", ", text)        # ", ," -> ", "
+    text = re.sub(r"\s+([,.;:!?])", r"\1", text)        # " ," -> ","
+    text = re.sub(r"([,;:])\s*([.!?])", r"\2", text)    # ", ." -> "."
+    text = re.sub(r"^\s*[,;:]\s*", "", text)            # leading punctuation
+    return re.sub(r"\s{2,}", " ", text).strip()
+
+
+def strip_ai_red_flags(sentences: List[str], ctx: Context) -> List[str]:
+    """Detect and remove the common tells of AI writing.
+
+    Targets, per sentence: em-dash overuse, the "not just X, it's Y" /
+    "not only X but also Y" parallel scaffold, the rule-of-three list cadence,
+    vague corporate buzzwords, exaggerated/impersonal praise, forced clichéd
+    analogies and redundant filler preamble.  (The "no personal anecdote" /
+    flat-vibe flags describe an *absence* and cannot be fixed by deletion, so
+    they are deliberately out of scope here.)
+
+    Deterministic given ``ctx.rng``; never raises and never emits an empty
+    sentence -- any pass that would strip a sentence to nothing is reverted.
+    """
+    out: List[str] = []
+    for sent in sentences:
+        original = sent
+        new = sent
+        if not new.strip():
+            out.append(new)
+            continue
+
+        term = _terminal_punct(new) or "."
+
+        # 1. Em-dash overuse -> comma (the single clearest tell; unconditional).
+        dashed = _DASH_RE.sub(", ", new)
+        if dashed != new:
+            new = dashed
+            ctx.log("ai-flag: replaced an em-dash")
+
+        # 2. Redundant filler preamble that only restates the point.
+        if _PREAMBLE_RE.match(new) and ctx.chance(0.85):
+            depreamble = _PREAMBLE_RE.sub("", new, count=1)
+            if depreamble != new and _has_alpha(depreamble):
+                new = depreamble
+                ctx.log("ai-flag: dropped filler preamble")
+
+        # 3. Exaggerated / impersonal praise.
+        for phrase, repl in _PRAISE:
+            pat = re.compile(r"\b" + re.escape(phrase) + r"\b", re.IGNORECASE)
+            if pat.search(new) and ctx.chance(0.85):
+                cand = pat.sub(lambda m, r=repl: _match_case(m.group(0), r)
+                               if r else "", new)
+                if _has_alpha(cand):
+                    new = cand
+                    ctx.log("ai-flag: removed impersonal praise")
+
+        # 4. Forced / clichéd analogies.
+        for phrase, repl in _ANALOGIES:
+            pat = re.compile(r"\b" + re.escape(phrase) + r"\b", re.IGNORECASE)
+            if pat.search(new) and ctx.chance(0.8):
+                new = pat.sub(lambda m, r=repl: _match_case(m.group(0), r), new)
+                ctx.log("ai-flag: defused a forced analogy")
+
+        # 5. "Not only/just X but (also) Y" -> "X and Y".
+        if _PARALLEL_CONJ_RE.search(new) and ctx.chance(0.8):
+            conj = _PARALLEL_CONJ_RE.sub(
+                lambda m: f"{m.group(1).strip()} and {m.group(2).strip()}",
+                new,
+                count=1,
+            )
+            if conj != new:
+                new = conj
+                ctx.log("ai-flag: flattened a parallel structure")
+
+        # 5b. "It's not just X, it's Y." -> keep the affirmative half.
+        echo = _PARALLEL_ECHO_RE.match(new)
+        if echo and _has_alpha(echo.group(3)) and ctx.chance(0.8):
+            subject = _match_case(echo.group(1), echo.group(1))
+            tail = echo.group(3).strip()
+            rebuilt = f"{subject} {tail}{echo.group(4) or ''}"
+            if _has_alpha(rebuilt):
+                new = rebuilt
+                ctx.log("ai-flag: flattened a parallel structure")
+
+        # 6. Vague / corporate buzzwords -> plainer wording.
+        def _debuzz(match: "re.Match") -> str:
+            word = match.group(0)
+            if not ctx.chance(0.8):
+                return word
+            pool = _BUZZWORDS[word.lower()]
+            choice = pool[ctx.rng.randrange(len(pool))]
+            ctx.log(f"ai-flag: replaced buzzword {word.lower()!r}")
+            return _match_case(word, choice)
+
+        new = _BUZZWORD_RE.sub(_debuzz, new)
+
+        # 7. Rule-of-three list cadence -> rebalanced (no item dropped).
+        if _TRIAD_RE.search(new) and ctx.chance(0.7):
+            tmpl = ctx.rng.choice(_TRIAD_TEMPLATES)
+
+            def _rebalance(m: "re.Match", tmpl=tmpl) -> str:
+                return tmpl.format(
+                    a=m.group(1), b=m.group(2), c=m.group(3)
+                )
+
+            rebalanced = _TRIAD_RE.sub(_rebalance, new, count=1)
+            if rebalanced != new:
+                new = rebalanced
+                ctx.log("ai-flag: broke a rule-of-three list")
+
+        new = _tidy(new)
+        if not _has_alpha(new):
+            out.append(original)
+            continue
+        if new != original:
+            new = _ensure_terminal(_capitalize_first(new).rstrip(".!?") + term)
+        out.append(new)
+    return out
+
+
+# --------------------------------------------------------------------------- #
 EXTRA_RULES: Dict[str, Callable[[List[str], Context], List[str]]] = {
     "reorder_clauses": reorder_clauses,
     "vary_openers": vary_openers,
     "inject_hedges_intensifiers": inject_hedges_intensifiers,
     "prune_redundancy": prune_redundancy,
     "soften_passive": soften_passive,
+    "strip_ai_red_flags": strip_ai_red_flags,
 }
