@@ -20,6 +20,7 @@ from dataclasses import dataclass, field
 from random import Random
 from typing import Callable, Dict, List
 
+from .academic_lexicon import ACADEMIC_LEXICON
 from .lexicon import word_surprisal
 from .tones import Tone
 
@@ -219,12 +220,19 @@ def _lower_body(s: str) -> str:
 
 def lexical_substitution(sentences: List[str], ctx: Context) -> List[str]:
     used: Dict[str, set] = {}
-    syn = ctx.tone.synonyms
     academic = getattr(ctx, "academic_style", False) or ctx.tone.name == "academic"
-    # Academic edits keep most words and stay in a common register; the
-    # thesaurus pressure is dialled back and rare-word bias is dropped.
-    phrase_chance = 0.20 if academic else 0.62
-    word_chance = 0.18 if academic else 0.68
+    # Academic style substitutes ONLY through the curated scholarly-register
+    # bank, so every swap is a true academic alternative and words absent from
+    # the bank are left untouched (what a careful human editor does).  Other
+    # tones keep the broad, rare-word-biased behaviour.
+    if academic:
+        syn = ACADEMIC_LEXICON
+        phrase_chance = 0.5
+        word_chance = 0.55
+    else:
+        syn = ctx.tone.synonyms
+        phrase_chance = 0.62
+        word_chance = 0.68
 
     def _pick(pool):
         if academic:

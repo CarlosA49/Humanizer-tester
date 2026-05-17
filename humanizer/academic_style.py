@@ -49,7 +49,6 @@ _DEFLATE = [
     (r"\bincreasingly important\b", "important"),
     (r"\bincreasingly emphasizes?\b", "focuses on"),
     (r"\bbecome increasingly\b", "become more"),
-    (r"\bremains? a significant concern\b", "is still a concern"),
     (r"\ba significant concern\b", "a concern"),
     (r"\bplays? a (?:crucial|vital|key|pivotal) role\b", "is central"),
     (r"\blarge-scale\s+", ""),
