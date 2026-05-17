@@ -6,6 +6,19 @@ care about most — **perplexity**, **burstiness**, and **lexical diversity**.
 
 Pure Python, **standard library only** (no models, no network, no installs).
 
+### Try it in your browser
+
+**▶ https://carlosa49.github.io/Humanizer-tester/**
+
+A full web app that runs the humanizer **entirely in your browser** (Python
+via Pyodide/WASM) — no server, nothing uploaded. First visit downloads a
+~6 MB runtime, then it's instant. Source for the app lives in [`docs/`](docs/)
+and is deployed by [`.github/workflows/pages.yml`](.github/workflows/pages.yml).
+
+> One-time repo setting to publish it: **Settings → Pages → Build and
+> deployment → Source = "GitHub Actions"**. The workflow then deploys on
+> every push and prints the live URL in its run summary.
+
 ## What it does
 
 | Signal | What it means | What the humanizer does |
@@ -121,6 +134,9 @@ humanizer/
   cli.py              command-line interface
 tests/                unittest suites (test_humanizer, test_extended)
 examples/             per-tone sample inputs
+docs/                 in-browser web app (Pyodide): index.html, app.js, styles.css
+web/build_site.py     bundles docs/ + live humanizer/ into _site for Pages
+.github/workflows/    CI: runs tests, builds & deploys the web app to Pages
 ```
 
 > Note: this nudges text toward human-typical statistics; it is a writing

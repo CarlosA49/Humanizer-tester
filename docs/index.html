@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>AI Humanizer — perplexity, burstiness &amp; lexical, by tone</title>
+<meta name="description" content="Rewrite machine-sounding text into a human tone. Tunes perplexity, burstiness and lexical diversity. Runs entirely in your browser." />
+<link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+<header>
+  <h1>AI Humanizer</h1>
+  <p class="tag">Rewrites machine-sounding text into a human <strong>tone</strong> &mdash;
+  tuning <strong>perplexity</strong>, <strong>burstiness</strong> and
+  <strong>lexical diversity</strong>. Everything runs in your browser; nothing is uploaded.</p>
+</header>
+
+<main>
+  <section class="panel controls">
+    <div class="row">
+      <label for="tone">Tone
+        <select id="tone" disabled></select>
+      </label>
+      <label for="strength">Strength <span id="strengthVal">0.6</span>
+        <input id="strength" type="range" min="0" max="1" step="0.05" value="0.6" />
+      </label>
+      <label for="seed">Seed <span class="hint">(optional, for repeatable output)</span>
+        <input id="seed" type="number" placeholder="random" />
+      </label>
+    </div>
+  </section>
+
+  <section class="grid">
+    <div class="panel">
+      <div class="panel-head">
+        <h2>Your text</h2>
+        <div>
+          <button id="sampleBtn" class="link" type="button">Load sample</button>
+          <span id="inCount" class="count">0 chars</span>
+        </div>
+      </div>
+      <textarea id="input" placeholder="Paste AI-sounding text here…" maxlength="20000"></textarea>
+      <button id="run" class="primary" type="button" disabled>Loading Python runtime…</button>
+    </div>
+
+    <div class="panel">
+      <div class="panel-head">
+        <h2>Humanized</h2>
+        <button id="copyBtn" class="link" type="button" hidden>Copy</button>
+      </div>
+      <div id="output" class="output" aria-live="polite"></div>
+      <div id="metrics" class="metrics" hidden></div>
+      <details id="changesWrap" hidden>
+        <summary>Change log (<span id="changeCount">0</span>)</summary>
+        <ul id="changes"></ul>
+      </details>
+    </div>
+  </section>
+
+  <p class="note">First visit downloads a ~6&nbsp;MB Python runtime (cached afterwards).
+  This nudges text toward human-typical statistics &mdash; a writing aid, not a guarantee
+  against any specific detector.</p>
+</main>
+
+<footer>
+  <a id="repoLink" href="#" rel="noopener">Source on GitHub</a>
+</footer>
+
+<div id="boot" class="boot">
+  <div class="spinner"></div>
+  <p id="bootMsg">Starting Python in your browser…</p>
+</div>
+
+<script src="https://cdn.jsdelivr.net/pyodide/v0.26.4/full/pyodide.js"></script>
+<script src="./app.js"></script>
+</body>
+</html>
