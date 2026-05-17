@@ -28,6 +28,67 @@ care about most — **perplexity**, **burstiness**, and **lexical diversity**.
 
 Pure Python, **standard library only** (no models, no network, no installs).
 
+## Plans, trial, coupons & feedback (MVP)
+
+A no‑backend launch MVP is built in: a **500‑word free trial**, an
+introductory‑priced plans page with pricing‑psychology framing, a **coupon
+system** (%‑off / ₱‑off / 100%‑free), a **password‑gated owner coupon
+generator** (footer → "Owner tools"), and an embedded **feedback form**.
+
+| Plan | Launch price | Words | Devices |
+|---|---|---|---|
+| Starter /mo | ₱499 | 10,000 / mo | 1 |
+| Pro /mo ★ | ₱799 | 30,000 / mo | 2 |
+| Pro Semi‑Annual (6 mo) | ₱3,990 | 30,000 / mo | 2 |
+| Pro Annual | ₱6,990 | 30,000 / mo | 3 |
+| Unlimited /mo | ₱5,000 | Unlimited (fair use) | 5 |
+| **Lifetime** (code‑only) | not listed | Pro forever | 3 |
+
+**Lifetime is never shown on the page** — issue it from Owner tools (plan
+`LIFE`, type `FREE`); redeeming the code unlocks full access on that device.
+Device limits are shown to users now and **enforced server‑side in the
+backend phase** (client‑side device binding alone is bypassable).
+
+> ⚠️ Without accounts this is a client‑side MVP (bypassable). **Enable the
+> free Supabase backend below** and trial counting, coupon redemption and
+> device limits become server‑enforced and tamper‑resistant. Payment capture
+> stays manual (PayMongo/PayPal proof → manual activation) for now.
+
+**Owner setup — edit [`docs/config.js`](docs/config.js):**
+- `FEEDBACK_FORM_ENDPOINT` — paste a free [Formspree](https://formspree.io)
+  endpoint (else feedback falls back to email).
+- `CONTACT_EMAIL` — your email (manual activation + fallback).
+- `PAYMENTS.PAYMONGO_LINKS` — PayMongo payment‑link URLs per plan
+  (GCash + cards → your **BPI**).
+- `PAYMENTS.PAYPAL_ME` and drop your PayPal QR at
+  `docs/payments/paypal-qr.png` (international).
+- Prices/word limits/anchors live in `PLANS` — tweak freely.
+- The owner password is stored only as a SHA‑256 hash (never plaintext).
+
+### Free accounts (Supabase) — optional, recommended
+
+Adds real signup/login with **email + password** and a per‑user profile
+that **syncs plan, trial words and devices across browsers/phones**. Trial
+counting, coupon redemption and device limits run as server‑side
+`SECURITY DEFINER` functions, so a signed‑in user **cannot tamper** with
+their own word count, unlock flag or device list. Free tier, no server to run.
+
+1. Create a free project at <https://supabase.com>.
+2. Open **SQL editor → New query**, paste
+   [`supabase/schema.sql`](supabase/schema.sql), and **Run**.
+3. **Authentication → Providers → Email** = enabled. (For instant signup in
+   testing you may disable “Confirm email”; keep it on for production.)
+4. **Project Settings → API**: copy the **Project URL** and the **anon
+   public** key into `SUPABASE_URL` / `SUPABASE_ANON_KEY` in
+   [`docs/config.js`](docs/config.js).
+5. Make sure `COUPON_SECRET` in `docs/config.js` **matches** the
+   `coupon_secret` value seeded by `schema.sql` (edit the SQL before running
+   if you change it).
+
+The anon key is safe to ship publicly — row‑level security restricts each
+user to their own row, and all writes go through the server functions.
+Leave the keys blank and the app keeps working as the localStorage‑only MVP.
+
 ## What it does
 
 | Signal | What it means | What the humanizer does |

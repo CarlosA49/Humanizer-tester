@@ -23,6 +23,8 @@
 </header>
 
 <main>
+  <div id="trialBanner" class="trialbar"></div>
+
   <section class="panel controls">
     <div class="row">
       <label for="tone">Tone
@@ -67,11 +69,46 @@
   <p class="note">First visit downloads a ~6&nbsp;MB Python runtime (cached afterwards).
   This nudges text toward human-typical statistics &mdash; a writing aid, not a guarantee
   against any specific detector.</p>
+
+  <section id="pricing" class="section"></section>
+  <section id="feedback" class="section"></section>
 </main>
 
 <footer>
+  <a id="accountLink" href="#" rel="noopener">Account</a>
+  <span class="dot">·</span>
   <a id="repoLink" href="#" rel="noopener">Source on GitHub</a>
+  <span class="dot">·</span>
+  <a id="ownerLink" href="#" rel="noopener">Owner tools</a>
 </footer>
+
+<div id="paywallModal" class="modal">
+  <div class="sheet">
+    <button class="xclose" aria-label="Close">×</button>
+    <h2>Your free trial is used up</h2>
+    <p>You've used your free 500 trial words. Pick a plan to keep humanizing —
+    or enter a coupon. Launch pricing is live now.</p>
+    <button id="paywallPlans" class="primary">See plans &amp; pricing</button>
+  </div>
+</div>
+
+<div id="checkoutModal" class="modal">
+  <div class="sheet"><button class="xclose" aria-label="Close">×</button>
+    <div id="checkoutBody"></div>
+  </div>
+</div>
+
+<div id="ownerModal" class="modal">
+  <div class="sheet"><button class="xclose" aria-label="Close">×</button>
+    <div id="ownerBody"></div>
+  </div>
+</div>
+
+<div id="authModal" class="modal">
+  <div class="sheet"><button class="xclose" aria-label="Close">×</button>
+    <div id="authBody"></div>
+  </div>
+</div>
 
 <div id="boot" class="boot">
   <div class="spinner"></div>
@@ -79,6 +116,10 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/pyodide/v0.26.4/full/pyodide.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="./config.js"></script>
+<script src="./auth.js"></script>
+<script src="./billing.js"></script>
 <script src="./app.js"></script>
 </body>
 </html>
