@@ -9,8 +9,15 @@ from typing import List, Optional
 
 from .advanced_metrics import humanity_score
 from .metrics import TextMetrics, analyze, split_sentences
+
+# Import pipeline before paraphrase: pipeline registers the paraphrase /
+# citation rules at its module bottom, so importing it first lets that
+# (one-directional) cycle resolve cleanly.
 from .pipeline import Context, Pipeline, pipeline_for_tone
+from .paraphrase import reflow_paragraphs
 from .tones import Tone, get_tone, list_tones
+
+_PARA_SPLIT_RE = re.compile(r"\n[ \t]*\n+")
 
 __all__ = ["Humanizer", "HumanizeResult", "list_tones"]
 
@@ -129,11 +136,19 @@ class Humanizer:
         strength: float = 0.5,
         seed: Optional[int] = None,
         pipeline: Optional[Pipeline] = None,
+        restructure: bool = True,
+        citations: str = "off",
+        sources: Optional[List[str]] = None,
     ) -> None:
         self.tone: Tone = get_tone(tone)
         self.strength = max(0.0, min(1.0, float(strength)))
         self.seed = seed
         self.pipeline = pipeline or pipeline_for_tone(self.tone.name)
+        self.restructure = bool(restructure)
+        self.citations = citations if citations in (
+            "off", "placeholder", "author-year", "numbered"
+        ) else "off"
+        self.sources = list(sources or [])
 
     def humanize(self, text: str) -> HumanizeResult:
         original = text or ""
@@ -143,11 +158,37 @@ class Humanizer:
             tone=self.tone,
             rng=Random(self.seed),
             strength=self.strength,
+            restructure=self.restructure,
+            citation_mode=self.citations,
+            sources=list(self.sources),
         )
-        sentences = split_sentences(original) or ([original] if original.strip() else [])
-        rewritten = self.pipeline.run(sentences, ctx)
-        result_text = " ".join(s.strip() for s in rewritten if s.strip())
-        result_text = _tidy_punctuation(_fix_articles(result_text))
+
+        # Preserve paragraph structure: rewrite each paragraph independently,
+        # then reflow paragraph rhythm.  Text without blank lines is a single
+        # paragraph, so behaviour is unchanged for the common case.
+        paragraphs = [p for p in _PARA_SPLIT_RE.split(original) if p.strip()]
+        if len(paragraphs) <= 1:
+            sentences = split_sentences(original) or (
+                [original] if original.strip() else []
+            )
+            rewritten = self.pipeline.run(sentences, ctx)
+            blocks = [" ".join(s.strip() for s in rewritten if s.strip())]
+        else:
+            blocks = []
+            for para in paragraphs:
+                sents = split_sentences(para) or [para]
+                rw = self.pipeline.run(sents, ctx)
+                blocks.append(" ".join(s.strip() for s in rw if s.strip()))
+            blocks = reflow_paragraphs(blocks, ctx)
+
+        # Tidy each block independently so the whitespace pass never collapses
+        # the paragraph separators.
+        clean = [
+            _tidy_punctuation(_fix_articles(b)) for b in blocks if b.strip()
+        ]
+        result_text = "\n\n".join(b for b in clean if b)
+        if ctx.citation_mode == "numbered" and ctx.references:
+            result_text += "\n\nReferences\n" + "\n".join(ctx.references)
 
         return HumanizeResult(
             original=original,

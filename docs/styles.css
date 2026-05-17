@@ -145,6 +145,20 @@ button.ghost{background:var(--panel2);color:var(--text);border:1px solid var(--l
 .stars{display:flex;gap:4px}
 .star{background:none;border:none;font-size:26px;color:var(--line);cursor:pointer;padding:0}
 .star.on{color:#f5b301}
+/* ---- clickable output words + synonym popover ---- */
+.output .w{border-radius:3px;cursor:pointer;transition:background .12s}
+.output .w:hover{background:rgba(59,130,246,.18)}
+.synpop{
+  position:absolute;z-index:70;max-width:320px;display:flex;flex-wrap:wrap;
+  gap:6px;background:var(--panel);border:1px solid var(--line);
+  border-radius:10px;padding:10px;box-shadow:0 8px 28px rgba(0,0,0,.45)
+}
+.synchip{
+  background:var(--panel2);color:var(--text);border:1px solid var(--line);
+  border-radius:999px;padding:5px 11px;font-size:13px;cursor:pointer
+}
+.synchip:hover{border-color:var(--accent);color:var(--accent)}
+.synempty{color:var(--muted);font-size:13px;padding:2px 4px}
 footer .dot{color:var(--line);margin:0 8px}
 footer #ownerLink,footer #accountLink{color:var(--muted)}
 #authBody h3,#devBody h3{margin-top:0}

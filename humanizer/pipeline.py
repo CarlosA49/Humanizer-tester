@@ -64,6 +64,10 @@ class Context:
     rng: Random
     strength: float = 0.5  # 0..1, scales how aggressively rules fire
     changes: List[str] = field(default_factory=list)
+    restructure: bool = True  # apply tone-aware sentence/paragraph rebuilding
+    citation_mode: str = "off"  # off | placeholder | author-year | numbered
+    sources: List[str] = field(default_factory=list)
+    references: List[str] = field(default_factory=list)
 
     def chance(self, base: float) -> bool:
         return self.rng.random() < min(1.0, base * (0.4 + 1.2 * self.strength))
@@ -335,11 +339,15 @@ RULES: Dict[str, Callable[[List[str], Context], List[str]]] = {
     "inject_discourse_markers": inject_discourse_markers,
 }
 
-# Registered after definition to avoid a circular import (extra_rules imports
+# Registered after definition to avoid a circular import (these modules import
 # Context and the helpers from this module).
 from .extra_rules import EXTRA_RULES  # noqa: E402
+from .paraphrase import restructure_sentences  # noqa: E402
+from .citations import add_citations  # noqa: E402
 
 RULES.update(EXTRA_RULES)
+RULES["restructure_sentences"] = restructure_sentences
+RULES["add_citations"] = add_citations
 
 DEFAULT_PIPELINE = [
     "strip_ai_tells",
@@ -347,11 +355,13 @@ DEFAULT_PIPELINE = [
     "lexical_substitution",
     "adjust_contractions",
     "reorder_clauses",
+    "restructure_sentences",
     "soften_passive",
     "vary_sentence_length",
     "inject_hedges_intensifiers",
     "vary_openers",
     "inject_discourse_markers",
+    "add_citations",
 ]
 
 # Tones can override the rule order / subset.  Anything not listed here falls
@@ -359,19 +369,20 @@ DEFAULT_PIPELINE = [
 TONE_PIPELINES: Dict[str, List[str]] = {
     "academic": [
         "strip_ai_tells", "prune_redundancy", "lexical_substitution",
-        "adjust_contractions", "reorder_clauses", "inject_hedges_intensifiers",
-        "vary_sentence_length", "vary_openers", "inject_discourse_markers",
+        "adjust_contractions", "reorder_clauses", "restructure_sentences",
+        "inject_hedges_intensifiers", "vary_sentence_length", "vary_openers",
+        "inject_discourse_markers", "add_citations",
     ],
     "confident": [
         "strip_ai_tells", "prune_redundancy", "soften_passive",
-        "lexical_substitution", "adjust_contractions",
+        "lexical_substitution", "adjust_contractions", "restructure_sentences",
         "inject_hedges_intensifiers", "vary_sentence_length",
-        "vary_openers", "inject_discourse_markers",
+        "vary_openers", "inject_discourse_markers", "add_citations",
     ],
     "storytelling": [
         "strip_ai_tells", "lexical_substitution", "adjust_contractions",
-        "reorder_clauses", "vary_sentence_length", "vary_openers",
-        "inject_discourse_markers",
+        "reorder_clauses", "restructure_sentences", "vary_sentence_length",
+        "vary_openers", "inject_discourse_markers", "add_citations",
     ],
 }
 

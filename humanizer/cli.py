@@ -42,6 +42,20 @@ def build_parser() -> argparse.ArgumentParser:
         help="0.0–1.0: how aggressively rules fire (default 0.5).",
     )
     p.add_argument("--seed", type=int, default=None, help="Seed for reproducible output.")
+    p.add_argument(
+        "--no-restructure", dest="restructure", action="store_false",
+        help="Disable tone-aware sentence/paragraph reconstruction.",
+    )
+    p.add_argument(
+        "--citations", default="off",
+        choices=("off", "placeholder", "author-year", "numbered"),
+        help="Optionally add in-text citation markers (default: off). "
+        "Markers are placeholders; no sources are invented.",
+    )
+    p.add_argument(
+        "--sources",
+        help="File with one reference per line; fills numbered [n] markers.",
+    )
     p.add_argument("-f", "--file", help="Read input text from a file.")
     p.add_argument("--metrics", action="store_true", help="Print before/after metrics.")
     p.add_argument(
@@ -68,8 +82,20 @@ def main(argv: Optional[List[str]] = None) -> int:
         print("No input text. Provide text, --file, or pipe via stdin.", file=sys.stderr)
         return 2
 
+    sources = []
+    if args.sources:
+        with open(args.sources, "r", encoding="utf-8") as fh:
+            sources = [ln.strip() for ln in fh if ln.strip()]
+
     try:
-        h = Humanizer(tone=args.tone, strength=args.strength, seed=args.seed)
+        h = Humanizer(
+            tone=args.tone,
+            strength=args.strength,
+            seed=args.seed,
+            restructure=args.restructure,
+            citations=args.citations,
+            sources=sources,
+        )
     except KeyError as exc:
         print(str(exc), file=sys.stderr)
         return 2

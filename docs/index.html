@@ -36,6 +36,25 @@
       <label for="seed">Seed <span class="hint">(optional, for repeatable output)</span>
         <input id="seed" type="number" placeholder="random" />
       </label>
+      <label for="restructure">Restructure <span class="hint">(rebuild sentences/paragraphs by tone)</span>
+        <select id="restructure">
+          <option value="on" selected>On</option>
+          <option value="off">Off</option>
+        </select>
+      </label>
+      <label for="citations">Citations <span class="hint">(optional, no sources invented)</span>
+        <select id="citations">
+          <option value="off" selected>Off</option>
+          <option value="placeholder">[citation needed]</option>
+          <option value="author-year">(Author, Year)</option>
+          <option value="numbered">Numbered [1] + sources</option>
+        </select>
+      </label>
+    </div>
+    <div class="row" id="sourcesRow" hidden>
+      <label for="sources" style="flex:1">Reference list <span class="hint">(one per line; fills numbered [n] markers)</span>
+        <textarea id="sources" rows="3" placeholder="Smith, J. (2021). Title. Journal.&#10;Doe, A. (2020). Title. Publisher."></textarea>
+      </label>
     </div>
   </section>
 
@@ -54,7 +73,7 @@
 
     <div class="panel">
       <div class="panel-head">
-        <h2>Humanized</h2>
+        <h2>Humanized <span class="hint">— double-click any word for synonyms</span></h2>
         <button id="copyBtn" class="link" type="button" hidden>Copy</button>
       </div>
       <div id="output" class="output" aria-live="polite"></div>
