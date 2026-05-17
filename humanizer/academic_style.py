@@ -115,12 +115,13 @@ def expand_acronyms(sentences: List[str], ctx: Context) -> List[str]:
         return sentences
     table = dict(_DEFAULT_ACRONYMS)
     table.update(getattr(ctx, "acronyms", {}) or {})
+    protect = getattr(ctx, "protect", frozenset())
     seen = ctx._acro_seen  # first-use is tracked per humanize() run
     out: List[str] = []
     for sent in sentences:
         new = sent
         for acro, full in table.items():
-            if acro in seen:
+            if acro in seen or acro.lower() in protect:
                 continue
             # Whole-token match, not already glossed (no '(' right after).
             pat = re.compile(r"(?<![\w(])" + re.escape(acro) + r"(?![\w(])")

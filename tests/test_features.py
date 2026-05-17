@@ -206,6 +206,113 @@ class AcademicStyleTests(unittest.TestCase):
         self.assertIn("non-line-of-sight (NLOS)", r.text)
 
 
+class AcademicLexiconExpansionTests(unittest.TestCase):
+    def test_domain_vocabulary_present(self):
+        from humanizer.academic_lexicon import academic_options
+
+        for w in ("dataset", "leverage", "model", "scalable", "occlusion",
+                  "latency", "deploy", "benchmark", "embedded"):
+            with self.subTest(word=w):
+                self.assertTrue(academic_options(w), w)
+
+    def test_merged_lexicon_prefers_project_options(self):
+        from humanizer.academic_lexicon import merged_lexicon
+
+        m = merged_lexicon({"System": ["framework"]})
+        self.assertEqual(m["system"][0], "framework")
+        # Base options are kept (de-duplicated) after the project ones.
+        self.assertIn("architecture", m["system"])
+        # New project-only head-words are added.
+        m2 = merged_lexicon({"widget": ["component"]})
+        self.assertEqual(m2["widget"], ["component"])
+
+
+class GlossaryTests(unittest.TestCase):
+    def test_normalize_is_tolerant(self):
+        from humanizer.glossary import normalize_glossary
+
+        g = normalize_glossary(
+            {"synonyms": {"System": "framework", "bad": 5},
+             "acronyms": {"UWB": "ultra-wideband (UWB)"},
+             "protect": ["YOLOv8", "ArUco"],
+             "junk": True}
+        )
+        self.assertEqual(g["synonyms"]["system"], ["framework"])
+        self.assertNotIn("bad", g["synonyms"])
+        self.assertEqual(g["acronyms"]["UWB"], "ultra-wideband (UWB)")
+        self.assertIn("yolov8", g["protect"])
+        for bad in (None, [], "x", 42):
+            n = normalize_glossary(bad)
+            self.assertEqual(n["synonyms"], {})
+            self.assertEqual(n["acronyms"], {})
+
+    def test_load_glossary_roundtrip_and_errors(self):
+        import json
+        import os
+        import tempfile
+
+        from humanizer.glossary import load_glossary
+
+        with tempfile.TemporaryDirectory() as d:
+            good = os.path.join(d, "g.json")
+            with open(good, "w", encoding="utf-8") as fh:
+                json.dump({"protect": ["ArUco"]}, fh)
+            self.assertIn("aruco", load_glossary(good)["protect"])
+
+            bad = os.path.join(d, "bad.json")
+            with open(bad, "w", encoding="utf-8") as fh:
+                fh.write("{not json")
+            with self.assertRaises(ValueError):
+                load_glossary(bad)
+            with self.assertRaises(ValueError):
+                load_glossary(os.path.join(d, "missing.json"))
+
+    def test_protected_terms_are_never_substituted(self):
+        gloss = {"protect": ["framework", "ArUco"]}
+        text = (
+            "The framework is robust and the framework is scalable. "
+            "ArUco markers support the framework in many different cases."
+        )
+        for seed in (1, 2, 3, 4, 5):
+            r = Humanizer(
+                tone="academic", strength=0.9, seed=seed, glossary=gloss
+            ).humanize(text)
+            self.assertIn("framework", r.text)
+            self.assertIn("ArUco", r.text)
+
+    def test_glossary_acronym_expanded_and_explicit_wins(self):
+        r = Humanizer(
+            tone="academic", strength=0.3, seed=1,
+            glossary={"acronyms": {"NLOS": "non-line-of-sight (NLOS)"}},
+        ).humanize("NLOS conditions reduce NLOS tracking accuracy here.")
+        self.assertIn("non-line-of-sight (NLOS)", r.text)
+
+        h = Humanizer(
+            tone="academic",
+            glossary={"acronyms": {"AI": "from glossary"}},
+            acronyms={"AI": "from explicit arg"},
+        )
+        self.assertEqual(h.acronyms["AI"], "from explicit arg")
+
+    def test_glossary_synonym_preference_can_apply(self):
+        gloss = {"synonyms": {"system": ["framework"]}}
+        seen = set()
+        for seed in range(8):
+            r = Humanizer(
+                tone="academic", strength=0.9, seed=seed, glossary=gloss
+            ).humanize("The system processes data. The system is reliable.")
+            seen.update(r.text.split())
+        self.assertIn("framework", seen)
+
+    def test_non_academic_tone_ignores_glossary_synonyms(self):
+        # Glossary synonyms only steer the academic lexicon path.
+        r = Humanizer(
+            tone="casual", strength=0.5, seed=1,
+            glossary={"protect": ["system"]},
+        ).humanize("The system is good.")
+        self.assertTrue(r.text.strip())
+
+
 class PatternInventoryTests(unittest.TestCase):
     def test_inventory_shape_and_positivity(self):
         for t in list_tones():

@@ -46,7 +46,7 @@ if "/pkg" not in sys.path:
 from humanizer import Humanizer, list_tones, suggest_synonyms
 
 def _run(text, tone, strength, seed, restructure, citations, sources,
-         academic, acronyms):
+         academic, acronyms, glossary):
     s = None if seed in (None, "", "None") else int(seed)
     src = [ln.strip() for ln in (sources or "").splitlines() if ln.strip()]
     acro = {}
@@ -55,6 +55,12 @@ def _run(text, tone, strength, seed, restructure, citations, sources,
             k, _, v = ln.partition("=")
             if k.strip() and v.strip():
                 acro[k.strip()] = v.strip()
+    gloss = None
+    if (glossary or "").strip():
+        try:
+            gloss = json.loads(glossary)
+        except Exception:
+            gloss = None
     r = Humanizer(
         tone=tone, strength=float(strength), seed=s,
         restructure=(str(restructure) != "off"),
@@ -62,6 +68,7 @@ def _run(text, tone, strength, seed, restructure, citations, sources,
         sources=src,
         academic_style=(str(academic) == "on"),
         acronyms=acro,
+        glossary=gloss,
     ).humanize(text)
     return json.dumps({
         "text": r.text,
@@ -252,7 +259,9 @@ function wireUI() {
   });
   const acaSel = $("academic");
   acaSel.addEventListener("change", () => {
-    $("acronymRow").hidden = acaSel.value !== "on";
+    const on = acaSel.value === "on";
+    $("acronymRow").hidden = !on;
+    $("glossaryRow").hidden = !on;
   });
 
   $("sampleBtn").addEventListener("click", () => {
@@ -285,7 +294,8 @@ function wireUI() {
           $("citations").value,
           $("sources").value,
           $("academic").value,
-          $("acronyms").value
+          $("acronyms").value,
+          $("glossary").value
         );
         render(JSON.parse(json));
         if (T) T.consume(words);

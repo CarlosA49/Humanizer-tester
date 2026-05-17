@@ -119,7 +119,77 @@ _VERBS: Dict[str, List[str]] = {
     "highlight": ["underscore", "emphasize", "foreground"],
     "highlights": ["underscores", "emphasizes"],
     "highlighted": ["underscored", "emphasized"],
-}
+    # --- domain verbs: CV / ML / edge / sensing -----------------------------
+    "leverage": ["exploit", "harness", "draw on"],
+    "leverages": ["exploits", "harnesses", "draws on"],
+    "leveraged": ["exploited", "harnessed", "drew on"],
+    "utilize": ["employ", "use", "apply"],
+    "utilizes": ["employs", "uses", "applies"],
+    "utilized": ["employed", "used", "applied"],
+    "facilitate": ["enable", "support", "ease"],
+    "facilitates": ["enables", "supports", "eases"],
+    "facilitated": ["enabled", "supported", "eased"],
+    "demonstrate": ["show", "establish", "confirm"],
+    "demonstrates": ["shows", "establishes", "confirms"],
+    "demonstrated": ["shown", "established", "confirmed"],
+    "validate": ["verify", "confirm", "corroborate"],
+    "validated": ["verified", "confirmed", "corroborated"],
+    "optimize": ["refine", "tune", "improve"],
+    "optimized": ["refined", "tuned", "improved"],
+    "mitigate": ["reduce", "alleviate", "lessen"],
+    "mitigated": ["reduced", "alleviated", "lessened"],
+    "incorporate": ["integrate", "include", "embed"],
+    "incorporated": ["integrated", "included", "embedded"],
+    "deploy": ["implement", "install", "operationalize"],
+    "deployed": ["implemented", "installed", "operationalized"],
+    "classify": ["categorize", "label", "discriminate"],
+    "classified": ["categorized", "labeled", "discriminated"],
+    "segment": ["partition", "delineate", "isolate"],
+    "segmented": ["partitioned", "delineated", "isolated"],
+    "annotate": ["label", "tag", "mark"],
+    "annotated": ["labeled", "tagged", "marked"],
+    "train": ["fit", "optimize"],
+    "trained": ["fitted", "optimized"],
+    "infer": ["predict", "estimate", "deduce"],
+    "inferred": ["predicted", "estimated", "deduced"],
+    "predict": ["estimate", "forecast", "anticipate"],
+    "predicted": ["estimated", "forecast", "anticipated"],
+    "estimate": ["approximate", "compute", "infer"],
+    "estimated": ["approximated", "computed", "inferred"],
+    "localize": ["locate", "position", "pinpoint"],
+    "localized": ["located", "positioned", "pinpointed"],
+    "calibrate": ["tune", "adjust", "align"],
+    "calibrated": ["tuned", "adjusted", "aligned"],
+    "benchmark": ["evaluate", "compare", "assess"],
+    "benchmarked": ["evaluated", "compared", "assessed"],
+    "outperform": ["surpass", "exceed", "outstrip"],
+    "outperforms": ["surpasses", "exceeds", "outstrips"],
+    "outperformed": ["surpassed", "exceeded", "outstripped"],
+    "process": ["handle", "compute", "analyze"],
+    "processed": ["handled", "computed", "analyzed"],
+    "extract": ["derive", "obtain", "isolate"],
+    "extracted": ["derived", "obtained", "isolated"],
+    "capture": ["record", "acquire", "register"],
+    "captured": ["recorded", "acquired", "registered"],
+    "recognize": ["identify", "detect", "discern"],
+    "recognized": ["identified", "detected", "discerned"],
+    "track": ["follow", "trace", "monitor"],
+    "tracked": ["followed", "traced", "monitored"],
+    "reduce": ["lower", "diminish", "curtail"],
+    "reduced": ["lowered", "diminished", "curtailed"],
+    "increase": ["raise", "boost", "augment"],
+    "increased": ["raised", "boosted", "augmented"],
+    "assume": ["presume", "posit", "hypothesize"],
+    "assumed": ["presumed", "posited", "hypothesized"],
+    "test": ["evaluate", "examine", "assess"],
+    "tested": ["evaluated", "examined", "assessed"],
+    "compare": ["contrast", "juxtapose", "benchmark"],
+    "compared": ["contrasted", "juxtaposed", "benchmarked"],
+    "combine": ["integrate", "merge", "fuse"],
+    "combined": ["integrated", "merged", "fused"],
+    "apply": ["employ", "use", "adopt"],
+    "applied": ["employed", "used", "adopted"],
+    "applies": ["employs", "uses", "adopts"],}
 
 # --------------------------------------------------------------------------- #
 # Nouns.
@@ -161,6 +231,56 @@ _NOUNS: Dict[str, List[str]] = {
     "scenario": ["setting", "case", "context"],
     "scenarios": ["settings", "cases", "contexts"],
     "context": ["setting", "domain"],
+    # --- domain nouns: CV / ML / edge / sensing -----------------------------
+    "dataset": ["data set", "corpus", "collection"],
+    "datasets": ["data sets", "corpora", "collections"],
+    "model": ["network", "architecture"],
+    "models": ["networks", "architectures"],
+    "algorithm": ["procedure", "scheme", "routine"],
+    "algorithms": ["procedures", "schemes", "routines"],
+    "architecture": ["design", "structure", "topology"],
+    "module": ["component", "unit", "block"],
+    "modules": ["components", "units", "blocks"],
+    "pipeline": ["workflow", "processing chain"],
+    "inference": ["prediction", "estimation"],
+    "throughput": ["processing rate", "data rate"],
+    "latency": ["delay", "response time"],
+    "robustness": ["resilience", "stability"],
+    "scalability": ["extensibility"],
+    "deployment": ["implementation", "rollout"],
+    "sensor": ["detector", "transducer"],
+    "sensors": ["detectors", "transducers"],
+    "node": ["device", "unit", "endpoint"],
+    "nodes": ["devices", "units", "endpoints"],
+    "feature": ["attribute", "characteristic", "descriptor"],
+    "features": ["attributes", "characteristics", "descriptors"],
+    "parameter": ["hyperparameter", "coefficient", "setting"],
+    "parameters": ["hyperparameters", "coefficients", "settings"],
+    "metric": ["measure", "indicator", "criterion"],
+    "metrics": ["measures", "indicators", "criteria"],
+    "baseline": ["reference", "benchmark"],
+    "occlusion": ["obstruction", "blockage"],
+    "illumination": ["lighting", "light conditions"],
+    "annotation": ["labeling", "tagging"],
+    "classifier": ["detector", "model"],
+    "detector": ["model", "classifier"],
+    "object": ["item", "target", "entity"],
+    "objects": ["items", "targets", "entities"],
+    "item": ["object", "article", "entity"],
+    "items": ["objects", "articles", "entities"],
+    "device": ["unit", "hardware", "module"],
+    "devices": ["units", "hardware", "modules"],
+    "data": ["information", "measurements"],
+    "noise": ["interference", "perturbation"],
+    "estimation": ["prediction", "inference"],
+    "detection": ["identification", "recognition"],
+    "recognition": ["identification", "detection"],
+    "verification": ["validation", "confirmation"],
+    "tracking": ["monitoring", "tracing"],
+    "implementation": ["deployment", "realization"],
+    "evaluation": ["assessment", "appraisal"],
+    "improvement": ["enhancement", "refinement", "gain"],
+    "improvements": ["enhancements", "refinements", "gains"],
 }
 
 # --------------------------------------------------------------------------- #
@@ -192,6 +312,24 @@ _ADJ: Dict[str, List[str]] = {
     "widely": ["extensively", "broadly", "commonly"],
     "often": ["frequently", "commonly", "typically"],
     "clearly": ["evidently", "demonstrably"],
+    # --- domain adjectives --------------------------------------------------
+    "scalable": ["extensible", "expandable"],
+    "lightweight": ["low-overhead", "compact"],
+    "embedded": ["on-device", "integrated"],
+    "computational": ["processing", "numerical"],
+    "empirical": ["experimental", "observed"],
+    "quantitative": ["numerical", "measured"],
+    "qualitative": ["descriptive", "non-numerical"],
+    "comparative": ["relative", "contrastive"],
+    "preliminary": ["initial", "early-stage", "tentative"],
+    "promising": ["encouraging", "favorable"],
+    "feasible": ["viable", "practical", "achievable"],
+    "viable": ["feasible", "workable", "practical"],
+    "optimal": ["best-performing", "ideal"],
+    "computationally": ["numerically"],
+    "real-time": ["online", "live"],
+    "indoor": ["interior", "in-building"],
+    "automated": ["automatic", "autonomous"],
 }
 
 # --------------------------------------------------------------------------- #
@@ -223,3 +361,25 @@ def academic_options(word: str) -> List[str]:
     """Return curated academic-register alternatives for ``word`` (lower-cased),
     or an empty list when the word should be left untouched."""
     return list(ACADEMIC_LEXICON.get((word or "").strip().lower(), []))
+
+
+def merged_lexicon(project: Dict[str, List[str]]) -> Dict[str, List[str]]:
+    """Base academic bank with a per-project synonym map layered on top.
+
+    Project options are listed first (preferred) and merged with any base
+    options for the same head-word, de-duplicated.  New project head-words are
+    added.  Keys are lower-cased; empty / malformed entries are ignored.
+    """
+    if not project:
+        return dict(ACADEMIC_LEXICON)
+    out: Dict[str, List[str]] = {k: list(v) for k, v in ACADEMIC_LEXICON.items()}
+    for raw_k, raw_v in project.items():
+        key = str(raw_k).strip().lower()
+        if not key or not isinstance(raw_v, (list, tuple)):
+            continue
+        opts = [str(x).strip() for x in raw_v if str(x).strip()]
+        if not opts:
+            continue
+        merged = list(dict.fromkeys(opts + out.get(key, [])))
+        out[key] = merged
+    return out

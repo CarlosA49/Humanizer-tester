@@ -66,6 +66,11 @@ def build_parser() -> argparse.ArgumentParser:
         "--acronyms",
         help="File of 'ACRO = expansion (ACRO)' lines for first-use glosses.",
     )
+    p.add_argument(
+        "--glossary",
+        help="Per-project glossary JSON: {\"synonyms\":{...}, "
+        "\"acronyms\":{...}, \"protect\":[...]} (academic style).",
+    )
     p.add_argument("-f", "--file", help="Read input text from a file.")
     p.add_argument("--metrics", action="store_true", help="Print before/after metrics.")
     p.add_argument(
@@ -106,6 +111,16 @@ def main(argv: Optional[List[str]] = None) -> int:
                     if k.strip() and v.strip():
                         acronyms[k.strip()] = v.strip()
 
+    glossary = None
+    if args.glossary:
+        from .glossary import load_glossary
+
+        try:
+            glossary = load_glossary(args.glossary)
+        except ValueError as exc:
+            print(str(exc), file=sys.stderr)
+            return 2
+
     try:
         h = Humanizer(
             tone=args.tone,
@@ -116,6 +131,7 @@ def main(argv: Optional[List[str]] = None) -> int:
             sources=sources,
             academic_style=args.academic_style,
             acronyms=acronyms,
+            glossary=glossary,
         )
     except KeyError as exc:
         print(str(exc), file=sys.stderr)

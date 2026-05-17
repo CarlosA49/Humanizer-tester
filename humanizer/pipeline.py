@@ -20,7 +20,7 @@ from dataclasses import dataclass, field
 from random import Random
 from typing import Callable, Dict, List
 
-from .academic_lexicon import ACADEMIC_LEXICON
+from .academic_lexicon import merged_lexicon
 from .lexicon import word_surprisal
 from .tones import Tone
 
@@ -71,6 +71,8 @@ class Context:
     references: List[str] = field(default_factory=list)
     academic_style: bool = False  # technical-paper transforms (always on for academic tone)
     acronyms: Dict[str, str] = field(default_factory=dict)  # extra first-use glosses
+    glossary_synonyms: Dict[str, List[str]] = field(default_factory=dict)
+    protect: frozenset = field(default_factory=frozenset)  # never substitute/expand
     _acro_seen: set = field(default_factory=set)
 
     def chance(self, base: float) -> bool:
@@ -225,8 +227,9 @@ def lexical_substitution(sentences: List[str], ctx: Context) -> List[str]:
     # bank, so every swap is a true academic alternative and words absent from
     # the bank are left untouched (what a careful human editor does).  Other
     # tones keep the broad, rare-word-biased behaviour.
+    protect = getattr(ctx, "protect", frozenset())
     if academic:
-        syn = ACADEMIC_LEXICON
+        syn = merged_lexicon(getattr(ctx, "glossary_synonyms", {}))
         phrase_chance = 0.5
         word_chance = 0.55
     else:
@@ -248,8 +251,13 @@ def lexical_substitution(sentences: List[str], ctx: Context) -> List[str]:
         for key in phrase_keys:
             pat = re.compile(r"\b" + re.escape(key) + r"\b", re.IGNORECASE)
 
+            if key in protect:
+                continue
+
             def _sub(m, key=key):
                 if _in_spans(m.start(), m.end(), _protected_spans(m.string)):
+                    return m.group(0)
+                if m.group(0).lower() in protect:
                     return m.group(0)
                 if not ctx.chance(phrase_chance):
                     return m.group(0)
@@ -279,6 +287,7 @@ def lexical_substitution(sentences: List[str], ctx: Context) -> List[str]:
             if (
                 is_word
                 and low in syn
+                and low not in protect
                 and not _in_spans(m.start(), m.end(), spans)
                 and not (academic and _is_proper_or_acronym(tok, first_alpha))
                 and not (academic and low in _FUNCTION_WORDS)

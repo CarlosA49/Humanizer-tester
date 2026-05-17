@@ -8,6 +8,7 @@ from random import Random
 from typing import List, Optional
 
 from .advanced_metrics import humanity_score
+from .glossary import normalize_glossary
 from .metrics import TextMetrics, analyze, split_sentences
 
 # Import pipeline before paraphrase: pipeline registers the paraphrase /
@@ -141,6 +142,7 @@ class Humanizer:
         sources: Optional[List[str]] = None,
         academic_style: bool = False,
         acronyms: Optional[dict] = None,
+        glossary: Optional[dict] = None,
     ) -> None:
         self.tone: Tone = get_tone(tone)
         self.strength = max(0.0, min(1.0, float(strength)))
@@ -152,7 +154,16 @@ class Humanizer:
         ) else "off"
         self.sources = list(sources or [])
         self.academic_style = bool(academic_style)
-        self.acronyms = dict(acronyms or {})
+
+        # A glossary may already be normalized ({synonyms, acronyms, protect})
+        # or a raw JSON-style dict; normalize defensively either way.
+        g = normalize_glossary(glossary) if glossary else {
+            "synonyms": {}, "acronyms": {}, "protect": frozenset()
+        }
+        self.glossary_synonyms = dict(g["synonyms"])
+        self.protect = frozenset(g["protect"])
+        # Explicit acronyms= argument wins over glossary acronyms.
+        self.acronyms = {**g["acronyms"], **(acronyms or {})}
 
     def humanize(self, text: str) -> HumanizeResult:
         original = text or ""
@@ -167,6 +178,8 @@ class Humanizer:
             sources=list(self.sources),
             academic_style=self.academic_style,
             acronyms=dict(self.acronyms),
+            glossary_synonyms=dict(self.glossary_synonyms),
+            protect=frozenset(self.protect),
         )
 
         # Preserve paragraph structure: rewrite each paragraph independently,
