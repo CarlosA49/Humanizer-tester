@@ -37,7 +37,7 @@ window.HUMANIZER_CONFIG = {
   FEEDBACK_FORM_ENDPOINT: "", // TODO(owner): paste Formspree endpoint
 
   // Contact for manual activation + email fallback.
-  CONTACT_EMAIL: "you@example.com", // TODO(owner): your email
+  CONTACT_EMAIL: "carlosimmanuel.robles@gmail.com",
 
   // Payment instructions shown at checkout (manual activation in the MVP).
   PAYMENTS: {
@@ -52,7 +52,7 @@ window.HUMANIZER_CONFIG = {
     },
     // International: your personal PayPal QR. Drop the image at
     // docs/payments/paypal-qr.png (you'll send it). Optional PayPal.me link:
-    PAYPAL_ME: "", // e.g. https://paypal.me/yourname  TODO(owner)
+    PAYPAL_ME: "https://paypal.me/CarlosImmanuelRobles",
   },
 
   // Launch pricing (introductory). `was` is the anchor (shown struck through).
