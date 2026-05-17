@@ -52,20 +52,53 @@
       else localStorage.removeItem(LS_DEV);
     } catch (e) {}
     refreshBanner();
+    var od = el("ogDev");
+    if (od) od.textContent = devMode()
+      ? "Turn OFF developer no-limit" : "Turn ON developer no-limit";
   }
-  function tryDevUnlock() {
+  // In-page modal (no native prompt/alert — those are blocked in the
+  // installed iOS home-screen app). Works in browser and PWA alike.
+  function renderDevBody() {
+    var body = el("devBody");
+    if (!body) return;
     if (devMode()) {
-      if (confirm("Developer mode is ON. Turn it off on this device?"))
-        setDevMode(false);
+      body.innerHTML =
+        "<h3>Developer mode</h3>" +
+        '<p class="muted">No-limit is <strong>ON</strong> for this device — ' +
+        "the word/token limit is disabled here only.</p>" +
+        '<button id="devOffBtn" class="primary">Turn off on this device</button>';
+      el("devOffBtn").onclick = function () { setDevMode(false); renderDevBody(); };
       return;
     }
-    var pass = prompt("Developer password (removes the word limit on this device):");
-    if (pass == null || pass === "") return;
-    sha256hex(pass).then(function (h) {
-      if (h !== CFG.DEV_SHA256) { alert("Incorrect password."); return; }
-      setDevMode(true);
-      alert("Developer mode ON — word/token limit disabled on this device.");
+    body.innerHTML =
+      "<h3>Developer access</h3>" +
+      '<p class="muted">Enter the developer password to remove the ' +
+      "word/token limit on this device.</p>" +
+      '<input id="devPw" type="password" placeholder="Developer password" ' +
+        'autocomplete="off" autocapitalize="off" autocorrect="off" />' +
+      '<button id="devGo" class="primary">Unlock</button>' +
+      '<span id="devMsg" class="cmsg"></span>';
+    function submit() {
+      var pw = el("devPw").value, msg = el("devMsg");
+      if (!pw) { msg.textContent = "Enter the password."; msg.className = "cmsg bad"; return; }
+      msg.textContent = "Checking…"; msg.className = "cmsg";
+      sha256hex(pw).then(function (h) {
+        if (h !== CFG.DEV_SHA256) {
+          msg.textContent = "Incorrect password."; msg.className = "cmsg bad"; return;
+        }
+        setDevMode(true);
+        renderDevBody();
+      });
+    }
+    el("devGo").onclick = submit;
+    el("devPw").addEventListener("keydown", function (e) {
+      if (e.key === "Enter") submit();
     });
+  }
+  function tryDevUnlock() {
+    renderDevBody();
+    var m = el("devModal");
+    if (m) m.style.display = "flex";
   }
 
   function remaining() { return Math.max(0, CFG.TRIAL_WORDS - getUsed()); }
@@ -404,16 +437,11 @@
       });
     };
     var dv = el("ogDev");
-    function paint() {
-      dv.textContent = devMode()
-        ? "Turn OFF developer no-limit" : "Turn ON developer no-limit";
-    }
-    paint();
+    dv.textContent = devMode()
+      ? "Turn OFF developer no-limit" : "Turn ON developer no-limit";
     dv.onclick = function () {
-      if (devMode()) { setDevMode(false); paint(); return; }
-      tryDevUnlock();
-      // re-paint shortly after the async password check resolves
-      setTimeout(paint, 400);
+      if (devMode()) setDevMode(false); // setDevMode repaints this button
+      else tryDevUnlock();
     };
   }
   function openOwner() {
@@ -613,7 +641,7 @@
     wireFeedback();
     refreshBanner();
     renderAuth();
-    ["paywallModal", "checkoutModal", "ownerModal", "authModal"]
+    ["paywallModal", "checkoutModal", "ownerModal", "authModal", "devModal"]
       .forEach(closeOnClick);
     var ow = el("ownerLink");
     if (ow) ow.onclick = function (e) { e.preventDefault(); openOwner(); };

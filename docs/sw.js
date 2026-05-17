@@ -3,7 +3,7 @@
    cache-first with network fallback for everything else (incl. the
    Pyodide runtime from the CDN, cached opportunistically on first use). */
 
-const CACHE = "humanizer-v5";
+const CACHE = "humanizer-v6";
 const SHELL = [
   "./",
   "./index.html",
