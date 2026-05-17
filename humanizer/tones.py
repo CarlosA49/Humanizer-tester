@@ -286,20 +286,51 @@ class Tone:
         return sum(len(v) for v in self.synonyms.values())
 
 
+# Optional very-large external vocabulary (built by a dedicated step).  When
+# present it is layered on top of the embedded data; when absent the embedded
+# data alone is used, so the package always works standalone.
+try:  # pragma: no cover - presence depends on build step
+    from . import dictionaries as _DICT  # type: ignore
+except Exception:  # noqa: BLE001
+    _DICT = None  # type: ignore
+
+
+def _merge_syn(
+    target: Dict[str, List[str]], extra: Dict[str, List[str]]
+) -> None:
+    """Merge ``extra`` into ``target``; extra options take precedence/order."""
+    for word, alts in extra.items():
+        target[word] = list(dict.fromkeys(list(alts) + target.get(word, [])))
+
+
 def _build_tone(name: str) -> Tone:
     syn: Dict[str, List[str]] = {k: list(v) for k, v in BASE_SYNONYMS.items()}
-    for word, alts in TONE_SYNONYMS.get(name, {}).items():
-        # Merge tone words in front (preferred) without losing base options.
-        merged = list(dict.fromkeys(alts + syn.get(word, [])))
-        syn[word] = merged
+
+    # Layer the large external base first, then embedded + external tone words
+    # and tone phrase banks, so tone-flavoured options are preferred.
+    if _DICT is not None and getattr(_DICT, "BASE_SYNONYMS", None):
+        _merge_syn(syn, _DICT.BASE_SYNONYMS)
+    _merge_syn(syn, TONE_SYNONYMS.get(name, {}))
+    if _DICT is not None:
+        _merge_syn(syn, getattr(_DICT, "TONE_SYNONYMS", {}).get(name, {}))
+        _merge_syn(syn, getattr(_DICT, "TONE_PHRASES", {}).get(name, {}))
+
+    def pick(attr: str, embedded: List[str]) -> List[str]:
+        if _DICT is not None:
+            ext = getattr(_DICT, attr, {}).get(name)
+            if ext:
+                # Keep both: external (larger) first, embedded as extra variety.
+                return list(dict.fromkeys(list(ext) + list(embedded)))
+        return list(embedded)
+
     return Tone(
         name=name,
         description=TONE_DESCRIPTIONS[name],
         synonyms=syn,
-        starters=list(TONE_STARTERS[name]),
-        interjections=list(TONE_INTERJECTIONS[name]),
-        connectors=list(TONE_CONNECTORS[name]),
-        fragments=list(TONE_FRAGMENTS[name]),
+        starters=pick("TONE_STARTERS", TONE_STARTERS[name]),
+        interjections=pick("TONE_INTERJECTIONS", TONE_INTERJECTIONS[name]),
+        connectors=pick("TONE_CONNECTORS", TONE_CONNECTORS[name]),
+        fragments=pick("TONE_FRAGMENTS", TONE_FRAGMENTS[name]),
         ai_tells=dict(_GLOBAL_AI_TELLS),
         contraction_mode=CONTRACTION_MODE[name],
     )

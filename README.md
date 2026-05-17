@@ -10,14 +10,18 @@ Pure Python, **standard library only** (no models, no network, no installs).
 
 | Signal | What it means | What the humanizer does |
 |---|---|---|
-| **Perplexity** | How (un)predictable the word choices are. Machine text is *low* (smooth, expected). | Swaps bland words for varied, tone-flavoured vocabulary -> raises perplexity. |
-| **Burstiness** | How much sentence length varies. Humans write long-then-short; machines are uniform. | Splits run-ons, merges short lines, drops in punchy fragments. |
-| **Lexical** | Vocabulary richness (type/token, MATTR). | Tone dictionaries + variety-aware substitution avoid repetition. |
+| **Perplexity** | How (un)predictable word choices are. Machine text is *low* (smooth, expected). | Swaps bland words for varied, tone-flavoured vocabulary; a backoff **bigram** model scores it. |
+| **Burstiness** | How much sentence length varies. Humans write long-then-short; machines are uniform. | Splits run-ons, merges short lines, drops in punchy fragments; measured vs a human target. |
+| **Lexical** | Vocabulary richness (TTR, MATTR, **MTLD**). | Large tone dictionaries + variety-aware substitution avoid repetition. |
 
-It runs its **own pipeline rules** (ordered, configurable) and ships large
-**per-tone dictionaries** (~235–250 synonyms each, plus sentence starters,
-interjections, connectors and fragments) that paraphrase the text or add
-phrasing drawn from the active tone.
+Everything is rolled into a single **humanity score** (0–100), reported
+before vs. after.
+
+It runs its **own pipeline rules** (ordered, configurable, per-tone) and
+ships large **per-tone dictionaries** (hundreds of synonyms each — run
+`--list-tones` for live counts — plus sentence starters, interjections,
+connectors, fragments and multi-word phrase banks) that paraphrase the text
+or add phrasing drawn from the active tone.
 
 ## Tones
 
@@ -30,15 +34,22 @@ python3 -m humanizer --list-tones
 
 ## Pipeline rules
 
-Run in order; each rule is independent and swappable:
+Ten independent, swappable rules. The default order (tones may reorder via
+`TONE_PIPELINES`):
 
 1. `strip_ai_tells` — removes giveaways ("it is important to note that",
    "in conclusion", "delve into", …).
-2. `lexical_substitution` — tone-aware, variety-preserving paraphrasing
-   (single words **and** phrases).
-3. `adjust_contractions` — contract / expand to match the tone's register.
-4. `vary_sentence_length` — split, merge, fragment → burstiness.
-5. `inject_discourse_markers` — tone starters & asides → human texture.
+2. `prune_redundancy` — cuts padding ("due to the fact that" → "because"),
+   doubled intensifiers, adjacent duplicate words.
+3. `lexical_substitution` — tone-aware, variety-preserving paraphrasing of
+   single words **and** multi-word phrases.
+4. `adjust_contractions` — contract / expand to match the tone's register.
+5. `reorder_clauses` — flips leading/trailing subordinate clauses.
+6. `soften_passive` — nudges agentless passive toward active.
+7. `vary_sentence_length` — split, merge, fragment → burstiness.
+8. `inject_hedges_intensifiers` — tone-aware hedges/intensifiers.
+9. `vary_openers` — breaks up repeated sentence-opening words.
+10. `inject_discourse_markers` — tone starters & asides → human texture.
 
 A final pass repairs `a`/`an` after substitutions.
 
@@ -49,17 +60,17 @@ A final pass repairs `a`/`an` after substitutions.
 python3 -m humanizer --tone casual --strength 0.8 "It is important to note that AI is very good."
 
 # From a file, with before/after metrics + change log
-python3 -m humanizer --tone academic --strength 0.7 --file examples/sample.txt --metrics --changes
+python3 -m humanizer --tone academic --strength 0.7 --file examples/academic.in.txt --metrics --changes
 
-# From stdin
-echo "We should use it because it is important." | python3 -m humanizer --tone persuasive
+# Detailed advanced report (bigram perplexity, MTLD, burstiness profile, humanity score)
+python3 -m humanizer --tone persuasive --file examples/persuasive.in.txt --report
 
-# Reproducible output
-python3 -m humanizer --tone witty --seed 42 "..."
+# From stdin, reproducible
+echo "We should use it because it is important." | python3 -m humanizer --tone witty --seed 42
 ```
 
 Options: `--tone/-t`, `--strength/-s` (0.0–1.0), `--seed`, `--file/-f`,
-`--metrics`, `--changes`, `--list-tones`.
+`--metrics`, `--report`, `--changes`, `--list-tones`.
 
 ## Library
 
@@ -69,18 +80,24 @@ from humanizer import Humanizer
 h = Humanizer(tone="professional", strength=0.6, seed=7)
 r = h.humanize("It is important to note that this is a very good idea.")
 
-print(r.text)        # rewritten text
-print(r.summary())   # perplexity / burstiness / lexical before -> after
-print(r.changes)     # list of every edit made
+print(r.text)              # rewritten text
+print(r.summary())         # perplexity / burstiness / lexical / humanity, before -> after
+print(r.humanity_delta)    # change in 0-100 humanity score
+print(r.changes)           # every edit made
 ```
 
-Custom pipeline (subset / reordered rules):
+Advanced metrics and custom pipelines:
 
 ```python
-from humanizer import Humanizer, Pipeline
+from humanizer import (Humanizer, Pipeline, humanity_score,
+                        bigram_perplexity, mtld, detailed_report)
 
-h = Humanizer(tone="academic", pipeline=Pipeline(rules=["strip_ai_tells",
-                                                        "lexical_substitution"]))
+# Subset / reordered rules
+Humanizer(tone="academic",
+          pipeline=Pipeline(rules=["strip_ai_tells", "lexical_substitution"]))
+
+humanity_score("some text")          # 0..100
+detailed_report("some text")         # dict: bigram_perplexity, mtld, ...
 ```
 
 ## Tests
@@ -93,14 +110,17 @@ python3 -m unittest discover -s tests -v
 
 ```
 humanizer/
-  lexicon.py    embedded frequency table -> perplexity proxy
-  metrics.py    perplexity / burstiness / lexical (TTR, MATTR)
-  tones.py      tone definitions + large dictionaries
-  pipeline.py   the rule engine + the 5 rules
-  core.py       Humanizer API + before/after metrics
-  cli.py        command-line interface
-tests/          unittest suite
-examples/       sample input
+  lexicon.py          embedded frequency table -> unigram surprisal
+  metrics.py          perplexity / burstiness / lexical (TTR, MATTR)
+  advanced_metrics.py bigram perplexity, MTLD, humanity score, report
+  tones.py            tone definitions; layers in the dictionaries pack
+  dictionaries.py     large per-tone vocabulary pack (optional, auto-loaded)
+  pipeline.py         the rule engine + core rules + per-tone pipelines
+  extra_rules.py      reorder / openers / hedges / prune / passive rules
+  core.py             Humanizer API + before/after metrics
+  cli.py              command-line interface
+tests/                unittest suites (test_humanizer, test_extended)
+examples/             per-tone sample inputs
 ```
 
 > Note: this nudges text toward human-typical statistics; it is a writing

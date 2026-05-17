@@ -24,12 +24,6 @@ from .tones import Tone
 
 _TOKEN_RE = re.compile(r"[A-Za-z][A-Za-z'-]*|[^A-Za-z\s]+|\s+")
 
-# Multi-word synonym keys are matched before single words.
-_MULTIWORD_KEYS = (
-    "very important", "a lot", "a number of", "in order to",
-    "show that", "good idea", "i think",
-)
-
 _CONTRACTIONS = {
     "do not": "don't", "does not": "doesn't", "did not": "didn't",
     "is not": "isn't", "are not": "aren't", "was not": "wasn't",
@@ -122,14 +116,17 @@ def strip_ai_tells(sentences: List[str], ctx: Context) -> List[str]:
 def lexical_substitution(sentences: List[str], ctx: Context) -> List[str]:
     used: Dict[str, set] = {}
     syn = ctx.tone.synonyms
+    # Every multi-word key in the tone dictionary, longest first so e.g.
+    # "due to the fact that" wins over "the fact that".
+    phrase_keys = sorted(
+        (k for k in syn if " " in k), key=len, reverse=True
+    )
     out = []
     for sent in sentences:
         text = sent
         # Multi-word phrase pass first.
-        for key in _MULTIWORD_KEYS:
-            if key not in syn:
-                continue
-            pat = re.compile(re.escape(key), re.IGNORECASE)
+        for key in phrase_keys:
+            pat = re.compile(r"\b" + re.escape(key) + r"\b", re.IGNORECASE)
 
             def _sub(m, key=key):
                 if not ctx.chance(0.5):
