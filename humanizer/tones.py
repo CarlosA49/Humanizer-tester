@@ -172,7 +172,7 @@ TONE_SYNONYMS: Dict[str, Dict[str, List[str]]] = {
 TONE_STARTERS: Dict[str, List[str]] = {
     "casual": ["Honestly,", "Look,", "So here's the thing —", "Okay, so", "Truth is,", "Not gonna lie,", "Here's the deal:"],
     "professional": ["Notably,", "In practice,", "From a delivery standpoint,", "Strategically,", "To be clear,", "Importantly,"],
-    "academic": ["Notably,", "It is worth noting that", "Crucially,", "On closer examination,", "By contrast,", "In this regard,"],
+    "academic": ["Notably,", "It is worth noting that", "Crucially,", "On closer examination,", "By contrast,", "In this regard,", "Furthermore,", "Moreover,", "Additionally,", "However,", "Thus,", "Consequently,", "Each of these studies suggests that"],
     "friendly": ["Honestly,", "Just so you know,", "Here's a little tip:", "Quick heads-up —", "By the way,", "Good news:"],
     "persuasive": ["Here's why this matters:", "Make no mistake —", "Think about it:", "The reality is,", "Consider this:", "Bottom line —"],
     "confident": ["Make no mistake,", "Here's the truth:", "Let's be clear:", "Without question,", "The fact is,"],

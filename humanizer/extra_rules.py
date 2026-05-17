@@ -193,6 +193,182 @@ _TRIAD_TEMPLATES = (
     "{a} and {b} (and {c})",
 )
 
+# --------------------------------------------------------------------------- #
+# Opening-reconstruction tables (consumed by recast_openings)
+# --------------------------------------------------------------------------- #
+# Templated "meta" introductions ("In this article we will explore X") -> the
+# topic itself, so the paragraph opens on substance instead of throat-clearing.
+_META_DOC = (
+    r"essays?|articles?|papers?|posts?|guides?|pieces?|sections?|chapters?"
+    r"|blogs?|reports?|tutorials?|videos?|discussions?|threads?"
+)
+_META_VERB = (
+    r"discuss|explore|examine|look at|cover|delve into|dig into|talk about"
+    r"|present|describe|outline|introduce|walk you through|go over"
+    r"|break down|unpack|dive into|take a look at"
+)
+_RECAST_META = (
+    re.compile(
+        r"^\s*in\s+this\s+(?:" + _META_DOC + r")\s*,?\s*(?:i|we|this|it)?\s*"
+        r"(?:will|aims?\s+to|would\s+like\s+to|am\s+going\s+to|are\s+going\s+to"
+        r"|'ll|want\s+to|wish\s+to|seek\s+to|hope\s+to|intend\s+to|plan\s+to)?"
+        r"\s*(?:" + _META_VERB + r")\b\s*:?\s*(?P<topic>.+)$",
+        re.IGNORECASE,
+    ),
+    re.compile(
+        r"^\s*this\s+(?:" + _META_DOC + r")\s+(?:will|aims?\s+to|seeks?\s+to"
+        r"|sets?\s+out\s+to|is\s+going\s+to|intends?\s+to)\s+(?:" + _META_VERB
+        + r")\b\s*:?\s*(?P<topic>.+)$",
+        re.IGNORECASE,
+    ),
+    re.compile(
+        r"^\s*(?:let's|let\s+us)\s+(?:dive|delve|jump|get|take\s+a\s+look"
+        r"|take\s+a\s+closer\s+look)\s+(?:in|into|right\s+in|started\s+with"
+        r"|at)\s*:?\s*(?P<topic>.+)$",
+        re.IGNORECASE,
+    ),
+    re.compile(
+        r"^\s*(?:today|here|in\s+this\s+section|in\s+what\s+follows|below)"
+        r"\s*,?\s*(?:i|we)\s+(?:will|want\s+to|wish\s+to|are\s+going\s+to"
+        r"|'ll|would\s+like\s+to)\s+(?:" + _META_VERB
+        + r")\b\s*:?\s*(?P<topic>.+)$",
+        re.IGNORECASE,
+    ),
+)
+
+# Empty-subject "there is/are X that ..." -> a direct subject opening.
+_RECAST_THERE_SING = re.compile(
+    r"^\s*there\s+(?:is|was)\s+(?P<art>an?|the|one|each|every|no)\s+"
+    r"(?P<noun>.+?)\s+(?:that|which|who)\s+(?P<rest>.+)$",
+    re.IGNORECASE,
+)
+_RECAST_THERE_PLUR = re.compile(
+    r"^\s*there\s+(?:are|were)\s+(?P<quant>many|several|some|a\s+few"
+    r"|numerous|a\s+number\s+of|various|countless|multiple)?\s*"
+    r"(?P<noun>.+?)\s+(?:that|which|who)\s+(?P<rest>.+)$",
+    re.IGNORECASE,
+)
+
+# "It is <adj> that <clause>" -> "<Adverb>, <clause>".
+_IT_IS_ADV = {
+    "clear": "Clearly", "obvious": "Obviously", "evident": "Evidently",
+    "likely": "Likely", "unlikely": "Unlikely", "true": "Indeed",
+    "important": "Importantly", "interesting": "Interestingly",
+    "surprising": "Surprisingly", "notable": "Notably",
+    "possible": "Possibly", "apparent": "Apparently",
+    "understandable": "Understandably", "clear enough": "Clearly",
+}
+_RECAST_IT_IS = re.compile(
+    r"^\s*it\s+is\s+(?P<adj>" + "|".join(re.escape(a) for a in _IT_IS_ADV)
+    + r")\s+that\s+(?P<rest>.+)$",
+    re.IGNORECASE,
+)
+
+# Throat-clearing lead-ins that delay the point -> dropped.
+_RECAST_THROAT = re.compile(
+    r"^\s*(?:to\s+begin\s+with|to\s+start\s+with|to\s+start|first\s+of\s+all"
+    r"|first\s+off|for\s+starters|at\s+the\s+outset|before\s+we\s+begin"
+    r"|before\s+diving\s+in|before\s+we\s+dive\s+in|first\s+and\s+foremost)"
+    r"\s*[,:.]?\s+(?P<rest>.+)$",
+    re.IGNORECASE,
+)
+
+# A nominalized opener -> its verb form.
+_RECAST_USE_OF = re.compile(
+    r"^\s*the\s+use\s+of\s+(?P<rest>.+)$", re.IGNORECASE
+)
+
+# --------------------------------------------------------------------------- #
+# "Human-version" style tables (consumed by humanize_phrasing)
+# --------------------------------------------------------------------------- #
+# Complex / heavy academic constructions -> plainer wording.  The "Human"
+# rewrite trades a little precision for readability; this is that trade.
+_SIMPLIFY: Tuple[Tuple[str, str], ...] = (
+    ("remains dependent on", "still needs"),
+    ("remain dependent on", "still need"),
+    ("is dependent on", "needs"),
+    ("are dependent on", "need"),
+    ("is contingent upon", "depends on"),
+    ("are contingent upon", "depend on"),
+    ("has the ability to", "can"),
+    ("have the ability to", "can"),
+    ("with respect to", "for"),
+    ("in the context of", "in"),
+    ("a wide range of", "many"),
+    ("a broad range of", "many"),
+    ("a significant number of", "many"),
+    ("the majority of", "most"),
+    ("in addition to", "besides"),
+    ("is affected by", "can be affected by"),
+    ("are affected by", "can be affected by"),
+    ("exhibits", "shows"),
+    ("facilitates", "helps"),
+    ("facilitate", "help"),
+    ("subsequently", "then"),
+    ("approximately", "about"),
+    ("a number of factors", "several things"),
+)
+
+# Strong, authoritative claims -> hedged, "softer" research voice.
+_SOFTEN_CLAIMS: Tuple[Tuple[str, str], ...] = (
+    ("supports the use of", "suggests the potential of using"),
+    ("support the use of", "suggest the potential of using"),
+    ("clearly demonstrates that", "suggests that"),
+    ("clearly demonstrates", "suggests"),
+    ("clearly shows that", "suggests that"),
+    ("demonstrates that", "suggests that"),
+    ("demonstrate that", "suggest that"),
+    ("proves that", "indicates that"),
+    ("prove that", "indicate that"),
+    ("confirms that", "indicates that"),
+    ("strongly suggests", "suggests"),
+    ("shows the need for", "points to a need for"),
+    ("highlights the need for", "points to a need for"),
+    ("underscores the need for", "points to a need for"),
+    ("is essential for", "may help with"),
+    ("is critical for", "may help with"),
+    ("plays a key role in", "may contribute to"),
+    ("these results confirm", "these results suggest"),
+    ("the findings prove", "the findings suggest"),
+    ("will improve", "may improve"),
+    ("will increase", "may increase"),
+    ("will enhance", "may improve"),
+    ("will significantly", "may"),
+)
+
+# A long, specific enumeration (4+ short items) -> a shorter, more general
+# phrasing.  Items are *not* invented away into a fabricated category; the
+# lead items are kept and the tail is generalised honestly.
+_ENUM_RE = re.compile(
+    r"\b((?:[\w'-]+(?:\s+[\w'-]+){0,3}\s*,\s*){3,})"
+    r"(?:and|or)\s+([\w'-]+(?:\s+[\w'-]+){0,3})\b",
+    re.IGNORECASE,
+)
+_ENUM_TEMPLATES = (
+    "{a}, {b}, and others",
+    "{a}, {b}, among others",
+    "{a} and {b}, among other things",
+    "{a}, {b}, and the like",
+)
+
+# Concise terms -> the stiffer, more formal "humanizer" noun phrases
+# (Human-version pattern #7).
+_PERIPHRASTIC: Tuple[Tuple[str, str], ...] = (
+    ("the combined system", "the proposed combined system altogether"),
+    ("the overall system", "the proposed combined system altogether"),
+    ("the proposed system", "the proposed combined system"),
+    ("the home environment", "the indoor and household environment"),
+    ("the household environment", "the indoor and household environment"),
+    ("the residents", "the individual inhabitants of those homes"),
+    ("the occupants", "the individual inhabitants of those homes"),
+    ("the inhabitants", "the individual inhabitants of those homes"),
+    ("the objects", "the objects of interest"),
+    ("the object", "the object of interest"),
+    ("the software", "the software that enables the system to function"),
+    ("the authors", "the authors of the study"),
+    ("indoors", "within the indoor environment"),
+)
+
 
 def _split_words(sentence: str) -> List[str]:
     return sentence.split()
@@ -645,6 +821,193 @@ def strip_ai_red_flags(sentences: List[str], ctx: Context) -> List[str]:
 
 
 # --------------------------------------------------------------------------- #
+# 7. recast_openings
+# --------------------------------------------------------------------------- #
+def recast_openings(sentences: List[str], ctx: Context) -> List[str]:
+    """Paraphrase / reconstruct the *opening* of a paragraph or sentence.
+
+    The first sentence is the paragraph's introduction, so it is treated as
+    the introduction and recast a little more eagerly than the rest.  Each
+    sentence's opening frame is rebuilt rather than just word-swapped:
+
+    * templated "meta" intros ("In this article we will explore X") -> X
+    * empty-subject "There is/are X that ..." -> a direct subject opening
+    * "It is <adj> that <clause>" -> "<Adverb>, <clause>"
+    * throat-clearing lead-ins ("To begin with, ...") -> dropped
+    * a nominalized "The use of X ..." opener -> "Using X ..."
+
+    The reconstruction runs before the lexical-paraphrase rule, so the
+    rebuilt opening is then paraphrased and tone-flavoured like the rest of
+    the text.  Deterministic given ``ctx.rng``; it draws no randomness when
+    no opening frame matches, so untouched text is bit-for-bit unchanged.
+    """
+    out: List[str] = []
+    for idx, sent in enumerate(sentences):
+        original = sent
+        if not sent.strip():
+            out.append(sent)
+            continue
+
+        # The introduction (first sentence) is recast more readily.
+        base = 0.9 if idx == 0 else 0.7
+        term = _terminal_punct(sent) or "."
+        rebuilt = None
+        why = ""
+
+        for pat in _RECAST_META:
+            m = pat.match(sent)
+            if m and _has_alpha(m.group("topic")):
+                rebuilt = m.group("topic").strip()
+                why = "reconstructed a templated introduction"
+                break
+
+        if rebuilt is None:
+            m = _RECAST_THROAT.match(sent)
+            if m and _has_alpha(m.group("rest")):
+                rebuilt = m.group("rest").strip()
+                why = "dropped a throat-clearing opener"
+
+        if rebuilt is None:
+            m = _RECAST_IT_IS.match(sent)
+            if m and _has_alpha(m.group("rest")):
+                adv = _IT_IS_ADV[m.group("adj").lower()]
+                rebuilt = f"{adv}, {m.group('rest').strip()}"
+                why = "recast an 'it is ... that' opener"
+
+        if rebuilt is None:
+            m = _RECAST_THERE_SING.match(sent)
+            if m and _has_alpha(m.group("noun")) and _has_alpha(
+                m.group("rest")
+            ):
+                rebuilt = (
+                    f"{m.group('art')} {m.group('noun').strip()} "
+                    f"{m.group('rest').strip()}"
+                )
+                why = "rebuilt an empty-subject opener"
+
+        if rebuilt is None:
+            m = _RECAST_THERE_PLUR.match(sent)
+            if m and _has_alpha(m.group("noun")) and _has_alpha(
+                m.group("rest")
+            ):
+                quant = (m.group("quant") or "").strip()
+                lead = f"{quant} " if quant else ""
+                rebuilt = (
+                    f"{lead}{m.group('noun').strip()} "
+                    f"{m.group('rest').strip()}"
+                )
+                why = "rebuilt an empty-subject opener"
+
+        if rebuilt is None:
+            m = _RECAST_USE_OF.match(sent)
+            if m and _has_alpha(m.group("rest")):
+                rebuilt = f"Using {m.group('rest').strip()}"
+                why = "recast a nominalized opener"
+
+        if rebuilt is not None and ctx.chance(base):
+            candidate = _ensure_terminal(
+                _capitalize_first(rebuilt).rstrip(".!?") + term
+            )
+            if _has_alpha(candidate):
+                ctx.log(f"structure: {why}")
+                out.append(candidate)
+                continue
+
+        out.append(original)
+    return out
+
+
+# --------------------------------------------------------------------------- #
+# 8. humanize_phrasing
+# --------------------------------------------------------------------------- #
+def _generalize_enum(match: "re.Match", ctx: Context) -> str:
+    """Shorten a long, specific list to its lead items + a generic tail."""
+    items = [
+        it.strip()
+        for it in match.group(1).split(",")
+        if it.strip()
+    ]
+    if len(items) < 2:
+        return match.group(0)
+    tmpl = ctx.rng.choice(_ENUM_TEMPLATES)
+    return tmpl.format(a=items[0], b=items[1])
+
+
+def humanize_phrasing(sentences: List[str], ctx: Context) -> List[str]:
+    """Apply the "Human-version" rewrite style.
+
+    Runs after the tone paraphrase so it has the final say on register:
+
+    * heavy academic constructions -> plainer wording (more readable,
+      a little less precise -- the deliberate Human-version trade);
+    * strong, authoritative claims -> a hedged, softer research voice
+      ("demonstrates that" -> "suggests that");
+    * concise terms -> the stiffer, more formal "humanizer" phrasing
+      ("the object" -> "the object of interest");
+    * a long, specific enumeration -> a shorter, more general phrasing
+      (lead items kept; the tail generalised, never fabricated).
+
+    Deterministic given ``ctx.rng``; it draws no randomness unless a
+    pattern actually matches, so untouched text is bit-for-bit unchanged
+    and the rest of the pipeline is unperturbed.
+    """
+    out: List[str] = []
+    for sent in sentences:
+        original = sent
+        new = sent
+        if not new.strip():
+            out.append(new)
+            continue
+
+        term = _terminal_punct(new) or "."
+        changed = False
+
+        for phrase, repl in _SIMPLIFY:
+            pat = re.compile(r"\b" + re.escape(phrase) + r"\b", re.IGNORECASE)
+            if pat.search(new) and ctx.chance(0.85):
+                new = pat.sub(
+                    lambda m, r=repl: _match_case(m.group(0), r), new
+                )
+                changed = True
+                ctx.log("style: simplified academic wording")
+
+        for phrase, repl in _SOFTEN_CLAIMS:
+            pat = re.compile(r"\b" + re.escape(phrase) + r"\b", re.IGNORECASE)
+            if pat.search(new) and ctx.chance(0.85):
+                new = pat.sub(
+                    lambda m, r=repl: _match_case(m.group(0), r), new
+                )
+                changed = True
+                ctx.log("style: softened an over-strong claim")
+
+        for phrase, repl in _PERIPHRASTIC:
+            pat = re.compile(r"\b" + re.escape(phrase) + r"\b", re.IGNORECASE)
+            if pat.search(new) and ctx.chance(0.85):
+                new = pat.sub(
+                    lambda m, r=repl: _match_case(m.group(0), r), new
+                )
+                changed = True
+                ctx.log("style: used a more formal phrasing")
+
+        if _ENUM_RE.search(new) and ctx.chance(0.8):
+            generalized = _ENUM_RE.sub(
+                lambda m: _generalize_enum(m, ctx), new, count=1
+            )
+            if generalized != new and _has_alpha(generalized):
+                new = generalized
+                changed = True
+                ctx.log("style: generalized a long enumeration")
+
+        if not _has_alpha(new):
+            out.append(original)
+            continue
+        if changed and new != original:
+            new = _ensure_terminal(_capitalize_first(new).rstrip(".!?") + term)
+        out.append(new)
+    return out
+
+
+# --------------------------------------------------------------------------- #
 EXTRA_RULES: Dict[str, Callable[[List[str], Context], List[str]]] = {
     "reorder_clauses": reorder_clauses,
     "vary_openers": vary_openers,
@@ -652,4 +1015,6 @@ EXTRA_RULES: Dict[str, Callable[[List[str], Context], List[str]]] = {
     "prune_redundancy": prune_redundancy,
     "soften_passive": soften_passive,
     "strip_ai_red_flags": strip_ai_red_flags,
+    "recast_openings": recast_openings,
+    "humanize_phrasing": humanize_phrasing,
 }
