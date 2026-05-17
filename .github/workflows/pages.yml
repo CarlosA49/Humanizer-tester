@@ -1,4 +1,4 @@
-name: Deploy web app to GitHub Pages
+name: CI and deploy web app
 
 on:
   push:
@@ -17,7 +17,9 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  build:
+  # Real signal: tests pass and the static site assembles. Independent of
+  # GitHub Pages being enabled, so this check is green on its own.
+  test:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -28,20 +30,35 @@ jobs:
         run: python -m unittest discover -s tests
       - name: Build static site
         run: python web/build_site.py
-      - name: Configure GitHub Pages (auto-enable if needed)
+      - name: Upload built site artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: site
+          path: _site
+          retention-days: 7
+
+  # Publishes to GitHub Pages. Requires a one-time repo setting:
+  # Settings -> Pages -> Build and deployment -> Source = "GitHub Actions".
+  # Until that is set this job (only) fails; `test` above stays green.
+  deploy:
+    needs: test
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Build static site
+        run: python web/build_site.py
+      - name: Configure GitHub Pages (auto-enable if permitted)
         uses: actions/configure-pages@v5
         with:
           enablement: true
       - uses: actions/upload-pages-artifact@v3
         with:
           path: _site
-
-  deploy:
-    needs: build
-    runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    steps:
       - id: deployment
         uses: actions/deploy-pages@v4
