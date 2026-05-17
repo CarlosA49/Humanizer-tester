@@ -7,6 +7,7 @@
   var CFG = window.HUMANIZER_CONFIG;
   var LS_USED = "hmz_used_words";
   var LS_UNLOCK = "hmz_unlock";
+  var LS_DEV = "hmz_dev"; // developer no-limit, this device only
   var appliedDiscount = null; // {planId|'all', kind:'PCT'|'AMT', value}
 
   // ---- helpers -----------------------------------------------------------
@@ -41,10 +42,36 @@
     try { return !!JSON.parse(localStorage.getItem(LS_UNLOCK) || "null"); }
     catch (e) { return false; }
   }
+  // Developer "no limit" — local to this device, gated by DEV_SHA256.
+  function devMode() {
+    try { return localStorage.getItem(LS_DEV) === "on"; } catch (e) { return false; }
+  }
+  function setDevMode(on) {
+    try {
+      if (on) localStorage.setItem(LS_DEV, "on");
+      else localStorage.removeItem(LS_DEV);
+    } catch (e) {}
+    refreshBanner();
+  }
+  function tryDevUnlock() {
+    if (devMode()) {
+      if (confirm("Developer mode is ON. Turn it off on this device?"))
+        setDevMode(false);
+      return;
+    }
+    var pass = prompt("Developer password (removes the word limit on this device):");
+    if (pass == null || pass === "") return;
+    sha256hex(pass).then(function (h) {
+      if (h !== CFG.DEV_SHA256) { alert("Incorrect password."); return; }
+      setDevMode(true);
+      alert("Developer mode ON — word/token limit disabled on this device.");
+    });
+  }
+
   function remaining() { return Math.max(0, CFG.TRIAL_WORDS - getUsed()); }
-  function allow() { return unlocked() || getUsed() < CFG.TRIAL_WORDS; }
+  function allow() { return devMode() || unlocked() || getUsed() < CFG.TRIAL_WORDS; }
   function consume(words) {
-    if (unlocked()) return;
+    if (devMode() || unlocked()) return;
     var A = acct();
     if (A) { A.consumeWords(words).then(refreshBanner); return; }
     setUsed(getUsed() + Math.max(0, words | 0));
@@ -60,6 +87,18 @@
       : A ? '<button id="acctOut" class="link">Sign out</button>'
           : '<button id="acctBtn" class="link">Sign in / Create account</button>';
 
+    if (devMode()) {
+      b.innerHTML = who +
+        '<span class="ok">⚙ Developer mode — word/token limit off ' +
+        "(this device)</span>" +
+        '<button id="devOff" class="link">Turn off</button>' + authBtn;
+      var df = el("devOff");
+      if (df) df.onclick = function () { setDevMode(false); };
+      var ab0 = el("acctBtn"); if (ab0) ab0.onclick = openAuth;
+      var ao0 = el("acctOut");
+      if (ao0) ao0.onclick = function () { window.Account.signOut(); };
+      return;
+    }
     if (deviceLimitHit) {
       var pm = planMeta((prof() && prof().plan) || "");
       b.innerHTML = who +
@@ -342,7 +381,10 @@
       '<label>Value <input id="ogVal" type="number" value="100" min="1" /></label>' +
       '<label>Expires in days (0 = never) <input id="ogExp" type="number" value="0" min="0" /></label>' +
       '<button id="ogGen" class="primary">Generate code</button>' +
-      '<div id="ogOut" class="ogout"></div>'
+      '<div id="ogOut" class="ogout"></div>' +
+      '<hr><h3>Developer</h3>' +
+      '<p class="muted">No-limit mode on <em>this device</em> only.</p>' +
+      '<button id="ogDev" class="ghost"></button>'
     );
   }
   function wireOwnerPanel() {
@@ -360,6 +402,18 @@
           el("ogCopy").textContent = "Copied";
         };
       });
+    };
+    var dv = el("ogDev");
+    function paint() {
+      dv.textContent = devMode()
+        ? "Turn OFF developer no-limit" : "Turn ON developer no-limit";
+    }
+    paint();
+    dv.onclick = function () {
+      if (devMode()) { setDevMode(false); paint(); return; }
+      tryDevUnlock();
+      // re-paint shortly after the async password check resolves
+      setTimeout(paint, 400);
     };
   }
   function openOwner() {
@@ -571,6 +625,18 @@
     };
     if (window.Account && window.Account.onChange)
       window.Account.onChange(onAccount);
+    // Hidden developer entry: open the site with #dev (or run __dev() in
+    // the console). Prompts for DEV_SHA256; no visible button on the page.
+    function devHash() {
+      if ((location.hash || "").toLowerCase() === "#dev") {
+        if (history.replaceState)
+          history.replaceState(null, "", location.pathname + location.search);
+        tryDevUnlock();
+      }
+    }
+    devHash();
+    window.addEventListener("hashchange", devHash);
+    window.__dev = tryDevUnlock;
   }
   if (document.readyState === "loading")
     document.addEventListener("DOMContentLoaded", init);
