@@ -3,7 +3,7 @@
    cache-first with network fallback for everything else (incl. the
    Pyodide runtime from the CDN, cached opportunistically on first use). */
 
-const CACHE = "humanizer-v6";
+const CACHE = "humanizer-v7";
 const SHELL = [
   "./",
   "./index.html",
@@ -23,10 +23,21 @@ self.addEventListener("install", (event) => {
   event.waitUntil(
     (async () => {
       const cache = await caches.open(CACHE);
-      await cache.addAll(SHELL).catch(() => {});
+      // Fetch shell with cache:"reload" so a new SW always stores the
+      // freshly deployed files (bypasses the HTTP cache), guaranteeing
+      // installed apps get the update.
+      await Promise.all(
+        SHELL.map(async (url) => {
+          try {
+            const res = await fetch(new Request(url, { cache: "reload" }));
+            if (res && (res.ok || res.type === "opaque"))
+              await cache.put(url, res.clone());
+          } catch (e) {}
+        })
+      );
       // Also precache the Python package files listed in the manifest.
       try {
-        const list = await (await fetch("./humanizer/__files__.json", { cache: "no-cache" })).json();
+        const list = await (await fetch("./humanizer/__files__.json", { cache: "reload" })).json();
         await cache.addAll(
           ["./humanizer/__files__.json", ...list.map((f) => "./humanizer/" + f)]
         );

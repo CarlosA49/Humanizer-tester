@@ -157,8 +157,28 @@ function wireUI() {
 }
 
 if ("serviceWorker" in navigator) {
+  // Auto-update the installed Home Screen app (Android + iOS) whenever a
+  // new version is deployed: when a fresh service worker takes control,
+  // reload once so the latest HTML/JS/CSS is shown. Guarded so it never
+  // loops and never reloads on the very first install.
+  let swRefreshing = false;
+  const hadController = !!navigator.serviceWorker.controller;
+  navigator.serviceWorker.addEventListener("controllerchange", () => {
+    if (swRefreshing || !hadController) return;
+    swRefreshing = true;
+    window.location.reload();
+  });
   window.addEventListener("load", () => {
-    navigator.serviceWorker.register("./sw.js").catch(() => {});
+    navigator.serviceWorker.register("./sw.js").then((reg) => {
+      const check = () => reg.update().catch(() => {});
+      check();
+      // Re-check when the app is reopened/foregrounded (installed PWAs
+      // often resume from background without a full navigation).
+      document.addEventListener("visibilitychange", () => {
+        if (document.visibilityState === "visible") check();
+      });
+      setInterval(check, 60 * 60 * 1000);
+    }).catch(() => {});
   });
 }
 
