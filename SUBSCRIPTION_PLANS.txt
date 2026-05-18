@@ -1,0 +1,105 @@
+================================================================================
+HUMANIZER-TESTER — SUBSCRIPTION PLANS & PRICING
+================================================================================
+Source of truth: docs/config.js  |  Currency: PHP (Philippine Peso, PHP/PHP)
+The app meters WORDS (not tokens).
+"was" = anchor price (shown struck-through).  "now" = current launch price.
+================================================================================
+
+FREE TRIAL
+--------------------------------------------------------------------------------
+  - 500 words, one-time per browser (config: TRIAL_WORDS: 500)
+  - No account required
+
+
+SUBSCRIPTION PLANS (shown on the pricing page)
+--------------------------------------------------------------------------------
+
+1) STARTER
+   Billing .......... Monthly
+   Price ............ PHP 499  (was PHP 999)
+   Words ............ 10,000 words / month
+   Device slots ..... 1
+   Positioning ...... "Best for trying it on real work"
+   Perks ............ All 9 tones
+                      Perplexity / burstiness / lexical
+                      Works offline
+
+2) PRO   (marked "popular")
+   Billing .......... Monthly
+   Price ............ PHP 799  (was PHP 1,599)
+   Words ............ 30,000 words / month
+   Device slots ..... 2
+   Positioning ...... "Best for regular writers"
+   Perks ............ Everything in Starter
+                      3x the words
+                      Priority new features
+
+3) PRO SEMI-ANNUAL   (badge: "Save 2 months")
+   Billing .......... Every 6 months
+   Price ............ PHP 3,990  (was PHP 4,794)
+   Words ............ 30,000 words / month, billed every 6 months
+   Device slots ..... 2
+   Positioning ...... "Best for steady users who want a deal"
+   Perks ............ Pro for 6 months
+                      Approx. PHP 665 / month
+                      Cheaper than monthly
+
+4) PRO ANNUAL   (badge: "Best value")
+   Billing .......... Yearly
+   Price ............ PHP 6,990  (was PHP 9,588)
+   Words ............ 30,000 words / month, billed yearly
+   Device slots ..... 3
+   Positioning ...... "Best overall - lowest monthly cost"
+   Perks ............ Pro, all year
+                      Approx. PHP 582 / month
+                      ~3 months free vs monthly
+
+5) UNLIMITED
+   Billing .......... Monthly
+   Price ............ PHP 5,000  (was PHP 8,999)
+   Words ............ Unlimited words (fair use)
+   Device slots ..... 5
+   Positioning ...... "Best for teams & heavy users"
+   Perks ............ Everything in Pro
+                      No monthly word cap
+                      Most devices
+
+
+HIDDEN LIFETIME PLAN (code-only — NEVER shown on the pricing page)
+--------------------------------------------------------------------------------
+   Name ............. Lifetime
+   Value ............ Pro features - forever
+   Device slots ..... 3
+   How to obtain .... Owner issues a code via Owner tools
+                      (plan = "LIFE", type = "FREE")
+   Effect ........... Redeeming the code unlocks full access on the
+                      redeeming device.
+
+
+COUPONS & OVERRIDES
+--------------------------------------------------------------------------------
+   Coupon types ..... Percentage-off (% off)
+                      Peso-off (PHP off)
+                      100%-free
+   Code signing ..... Codes signed with COUPON_SECRET
+   Owner generator .. Password-gated (footer -> "Owner tools").
+                      Owner password stored only as a SHA-256 hash
+                      (plaintext never stored).
+   Dev override ..... A separate SHA-256-gated developer "no limit"
+                      password turns off the word limit on that ONE
+                      device only (hidden feature).
+
+
+IMPORTANT CAVEATS
+--------------------------------------------------------------------------------
+   - Device limits are a SOFT limit shown to users for now. Real
+     per-device binding and tamper-resistant trial / coupon / word
+     enforcement only apply once the Supabase backend phase is enabled.
+     Without it, this is a bypassable client-side MVP.
+   - Payment capture is MANUAL: PayMongo (GCash + cards -> BPI) or
+     PayPal -> manual activation by the owner.
+
+================================================================================
+End of document.
+================================================================================
